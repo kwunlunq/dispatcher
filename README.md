@@ -2,6 +2,8 @@
 
 Dispatcher主要功能為透過kafaka任務調度及消息推送, 目前是建構在套件sarama之上
 
+參考 [examples](./examples) 使用範例
+
 ### Producer
 
  - Send(topic, key, data string)
@@ -9,6 +11,9 @@ Dispatcher主要功能為透過kafaka任務調度及消息推送, 目前是建�
 ### Consumer
 
  - Subscribe(topic string, groupID string, callback ConsumerCallback)
+
+
+
 
 app.conf
 ```
