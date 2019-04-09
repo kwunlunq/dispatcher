@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 
+	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
+
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/cfg"
 )
@@ -28,7 +30,7 @@ var (
 )
 
 const (
-	confKey = "dispatcher"
+	projName = "dispatcher"
 )
 
 func init() {
@@ -44,9 +46,9 @@ func loadSaramaConfigs() {
 
 	c.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	c.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-	c.Producer.Return.Successes = true
+	// c.Producer.Return.Successes = true       // Receive success msg
 
-	c.Version = sarama.V2_1_0_0
+	c.Version = sarama.V2_1_0_0 // To enable consumer group
 	c.Consumer.Return.Errors = true
 
 	tlsConfig := createTlsConfiguration()
@@ -60,9 +62,9 @@ func loadSaramaConfigs() {
 
 func loadCommonConfigs() {
 	appConfig = cfg.Load("app.conf")
-	ipList = appConfig.GetValue(confKey, "ip_list", "127.0.0.1")
+	ipList = appConfig.GetValue(projName, "ip_list", "127.0.0.1")
 	brokerList = strings.Split(ipList, ",")
-	log.Printf("Kafka brokers: %s", strings.Join(brokerList, ", "))
+	tracer.Infof(projName, "Kafka brokers: %s", strings.Join(brokerList, ", "))
 }
 
 func loadProducerConfigs() {
@@ -72,7 +74,7 @@ func loadConsumerConfigs() {
 }
 
 func createTlsConfiguration() (t *tls.Config) {
-	tlsEnable := appConfig.GetValueAsBool(confKey, "tls_enable", false)
+	tlsEnable := appConfig.GetValueAsBool(projName, "tls_enable", false)
 	if !tlsEnable {
 		return nil
 	}

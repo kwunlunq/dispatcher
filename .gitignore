@@ -1,2 +1,6 @@
 
 examples/producer/debug
+
+\.vscode/
+
+*.exe

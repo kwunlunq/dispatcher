@@ -2,9 +2,9 @@ package dispatcher
 
 import (
 	"log"
-	"os"
-	"os/signal"
 	"sync"
+
+	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 
 	"github.com/Shopify/sarama"
 )
@@ -14,75 +14,38 @@ var (
 	producerLock   sync.Mutex
 )
 
-type ProducerMessage struct {
-}
-
-type Producer interface {
-	SendMessage(data interface{})
-}
-
-type asyncProducer struct {
-	sarama.AsyncProducer
-}
-
-func (this asyncProducer) SendMessage(data interface{}) {
-
-}
-
-type ProducerOption interface {
-	apply(*producerOption)
-}
-
-type producerOption struct {
-}
-
-// func (p *asyncProducer) SendMessage(msg *ProducerMessage) {
-// 	var saramaProducer sarama.SyncProducer = sarama.SyncProducer(*p)
-// 	pMsg := sarama.ProducerMessage(*msg)
-// 	saramaProducer.SendMessage(&pMsg)
-// }
-
 func Send(topic, key, data string) {
+
 	producer, err := getSaramaProducer()
 	if err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := producer.Close(); err != nil {
-			log.Fatalln(err)
+		if r := recover(); r != nil {
+			tracer.Errorf("dispatcher", "Closing producer due to panic: %v", r)
+			if err := producer.Close(); err != nil {
+				tracer.Errorf("dispatcher", "Error closing producer: %v", err.Error())
+			}
 		}
 	}()
 
-	// Trap SIGINT to trigger a shutdown.
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+	tracer.Infof(projName, "Sending message [%v/%v/%v] ...\n", topic, key, data)
 
-	log.Printf("Sending message [%v/%v/%v] ...\n", topic, key, data)
-
-	var enqueued, errors int
-	// ProducerLoop:
-	// 	for {
 	select {
 	case producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.StringEncoder(key), Value: sarama.StringEncoder(data)}:
-		enqueued++
 	case err := <-producer.Errors():
-		log.Println("Failed to produce message", err)
-		errors++
-		// case <-signals:
-		// 	break ProducerLoop
+		tracer.Errorf(projName, "Failed to produce message: %v", err)
 	}
-	// }
 
-	// log.Printf("Enqueued: %d; errors: %d\n", enqueued, errors)
-	log.Printf("Enqueued: %d; errors: %d\n", enqueued, errors)
+	tracer.Infof(projName, "Message [%v/%v/%v] sent\n", topic, key, data)
 }
 
 func getSaramaProducer() (p sarama.AsyncProducer, err error) {
 	if p == nil {
 		producerLock.Lock()
 		if p == nil {
-			p, err = NewSaramaProducer()
+			p, err = newSaramaProducer()
 			saramaProducer = p
 		}
 		producerLock.Unlock()
@@ -90,7 +53,7 @@ func getSaramaProducer() (p sarama.AsyncProducer, err error) {
 	return
 }
 
-func NewSaramaProducer() (saramaProducer sarama.AsyncProducer, err error) {
+func newSaramaProducer() (saramaProducer sarama.AsyncProducer, err error) {
 
 	// On the broker side, you may want to change the following settings to get
 	// stronger consistency guarantees:
@@ -104,10 +67,4 @@ func NewSaramaProducer() (saramaProducer sarama.AsyncProducer, err error) {
 
 	// saramaProducer.Close()
 	return
-}
-
-func NewProducer(opts ...ProducerOption) Producer {
-	producer, err := NewSaramaProducer()
-	log.Fatal(err)
-	return asyncProducer{producer}
 }

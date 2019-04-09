@@ -1,6 +1,6 @@
 # dispatcher
 
-Dispatcher主要功能為透過kafaka任務調度及消息推送, 目前是建構在套件sarama之上
+Dispatcher主要功能為透過kafaka任務調度及消息推送
 
 參考 [examples](./examples) 使用範例
 
