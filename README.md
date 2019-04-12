@@ -14,6 +14,7 @@ func Send(topic, key, val []byte)
 
 ```go
 func Subscribe(topic string, groupID string, callback ConsumerCallback)
+type ConsumerCallback func(key, value []byte) error
 ```
 
 `app.conf`

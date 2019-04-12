@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
+
 	"github.com/Shopify/sarama"
 )
 
@@ -60,9 +62,17 @@ func (commonConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 }
 
 func (h commonConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	defer func() {
+		if err := recover(); err != nil {
+			tracer.Errorf(projName, "ConsumeClaim recover from panic: %v", err)
+		}
+	}()
 	for msg := range claim.Messages() {
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-		h.callback(msg.Key, msg.Value)
+		err := h.callback(msg.Key, msg.Value)
+		if err != nil {
+			tracer.Errorf("Dispatcher", "Callback throws error: %v", err.Error())
+		}
 		sess.MarkMessage(msg, "")
 	}
 	return nil
