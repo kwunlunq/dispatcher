@@ -19,7 +19,7 @@ type ConsumerCallback func(key, value []byte) error
 
 ### 建置
 
-> Windows環境需安裝 [gcc](./build/mingw-w64-install.exe) , Architecure選x86_64
+Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_64
 
 `app.conf`
 
