@@ -7,10 +7,9 @@ import (
 	"log"
 	"strings"
 
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
-
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/cfg"
+	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
 var (
@@ -64,7 +63,7 @@ func loadCommonConfigs() {
 	appConfig = cfg.Load("app.conf")
 	ipList = appConfig.GetValue(projName, "ip_list", "127.0.0.1")
 	brokerList = strings.Split(ipList, ",")
-	tracer.Infof(projName, "Kafka brokers: %s", strings.Join(brokerList, ", "))
+	tracer.Infof("Kafka brokers: %s", strings.Join(brokerList, ", "))
 }
 
 func loadProducerConfigs() {

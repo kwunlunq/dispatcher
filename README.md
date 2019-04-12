@@ -6,16 +6,18 @@ Dispatcher主要功能為透過kafaka任務調度及消息推送
 
 ### Producer
 
- - Send(topic, key, data string)
+```go
+func Send(topic, key, val []byte)
+```
 
 ### Consumer
 
- - Subscribe(topic string, groupID string, callback ConsumerCallback)
+```go
+func Subscribe(topic string, groupID string, callback ConsumerCallback)
+```
 
+`app.conf`
 
-
-
-app.conf
 ```
 [dispatcher]
 ip_list=10.200.252.180:9092,10.200.252.181:9092,10.200.252.182:9092

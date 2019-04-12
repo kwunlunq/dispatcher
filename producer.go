@@ -14,7 +14,7 @@ var (
 	producerLock   sync.Mutex
 )
 
-func Send(topic, key, data string) {
+func Send(topic string, key, value []byte) {
 
 	producer, err := getSaramaProducer()
 	if err != nil {
@@ -30,15 +30,15 @@ func Send(topic, key, data string) {
 		}
 	}()
 
-	tracer.Infof(projName, "Sending message [%v/%v/%v] ...\n", topic, key, data)
+	tracer.Infof(projName, "Sending message [%v/%v/%v] ...\n", topic, string(key[:]), string(value[:]))
 
 	select {
-	case producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.StringEncoder(key), Value: sarama.StringEncoder(data)}:
+	case producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.ByteEncoder(key), Value: sarama.ByteEncoder(value)}:
 	case err := <-producer.Errors():
 		tracer.Errorf(projName, "Failed to produce message: %v", err)
 	}
 
-	tracer.Infof(projName, "Message [%v/%v/%v] sent\n", topic, key, data)
+	tracer.Infof(projName, "Message [%v/%v/%v] sent\n", topic, string(key[:]), string(value[:]))
 }
 
 func getSaramaProducer() (p sarama.AsyncProducer, err error) {

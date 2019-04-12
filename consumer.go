@@ -8,7 +8,7 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-type ConsumerCallback func(key, value string)
+type ConsumerCallback func(key, value []byte) error
 
 func Subscribe(topic string, groupID string, callback ConsumerCallback) {
 	// Start with a client
@@ -62,7 +62,7 @@ func (commonConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 func (h commonConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
 		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-		h.callback(string(msg.Key[:]), string(msg.Value[:]))
+		h.callback(msg.Key, msg.Value)
 		sess.MarkMessage(msg, "")
 	}
 	return nil

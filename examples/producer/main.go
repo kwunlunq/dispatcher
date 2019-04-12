@@ -1,14 +1,15 @@
 package main
 
 import (
+	"strconv"
 	"time"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
 )
 
 func main() {
-	dispatcher.Send("my-topic", "msg-key", "msg-val-1")
-	dispatcher.Send("my-topic", "msg-key", "msg-val-2")
-	dispatcher.Send("my-topic", "msg-key", "msg-val-3")
+	for i := 0; i < 5; i++ {
+		dispatcher.Send("my-topic", []byte("msg-key"), []byte("Hello, from go-dispatcher-"+strconv.Itoa(i)))
+	}
 	time.Sleep(500 * time.Millisecond) // Wait message sent complete
 }
