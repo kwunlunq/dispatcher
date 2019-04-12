@@ -3,4 +3,7 @@ examples/producer/debug
 
 \.vscode/
 
-*.exe
+
+examples/consumer/consumer\.exe
+
+examples/producer/producer\.exe
