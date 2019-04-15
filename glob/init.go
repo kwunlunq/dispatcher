@@ -55,7 +55,7 @@ func loadSaramaConfigs() {
 	c.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	// c.Producer.Return.Successes = true       // Receive success msg
 
-	c.Version = sarama.V2_1_0_0 // To enable consumer group
+	// c.Version = sarama.V2_0_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 	// c.Version = "v2.1.0" // To enable consumer group
 	c.Consumer.Return.Errors = true
 	// c.Consumer.Offsets.Initial = sarama.OffsetOldest
