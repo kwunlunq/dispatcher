@@ -2,45 +2,68 @@ package dispatcher
 
 import (
 	"context"
-	"fmt"
-	"log"
+
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 
 	"github.com/Shopify/sarama"
 )
 
-type ConsumerCallback func(key, value []byte) error
+func Subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+	if asyncNum <= 0 {
+		asyncNum = 1
+	}
+	go subscribe(topic, groupID, callback, asyncNum)
+}
 
-func Subscribe(topic string, groupID string, callback ConsumerCallback) {
+func subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+
 	// Start with a client
-	client, err := sarama.NewClient(brokerList, saramaConfig)
+	client, err := sarama.NewClient(glob.BrokerList, glob.SaramaConfig)
 	if err != nil {
 		panic(err)
 	}
-	defer func() { _ = client.Close() }()
+
+	// Close client in the end
+	defer func() {
+		err := client.Close()
+		if err != nil {
+			tracer.Errorf(glob.ProjName, "Error closing client: %v", err.Error())
+		}
+	}()
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(groupID, client)
 	if err != nil {
 		panic(err)
 	}
-	defer func() { _ = group.Close() }()
+	// Close consumer group in the end
+	defer func() {
+		err := group.Close()
+		if err != nil {
+			tracer.Errorf(glob.ProjName, "Error closing group: %v", err.Error())
+		}
+	}()
 
 	// Track errors
 	go func() {
 		for err := range group.Errors() {
-			fmt.Println("ERROR", err)
+			tracer.Errorf(glob.ProjName, "Consumer group err: %v", err.Error())
+			panic(err)
 		}
 	}()
 
-	log.Printf("Listening topic [%v] with groupID [%v] ...\n", topic, groupID)
+	tracer.Tracef(glob.ProjName, " Listening topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
 
 	// Iterate over consumer sessions.
 	ctx := context.Background()
 	for {
 		topics := []string{topic}
-		handler := commonConsumerGroupHandler{callback}
+
+		handler := consumerHandler{model.MakeWorkerPool(callback, asyncNum)}
 
 		err := group.Consume(ctx, topics, handler)
 		if err != nil {
@@ -49,31 +72,40 @@ func Subscribe(topic string, groupID string, callback ConsumerCallback) {
 	}
 }
 
-type commonConsumerGroupHandler struct {
-	callback ConsumerCallback
+type consumerHandler struct {
+	pool model.WorkerPool
 }
 
-func (commonConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error {
+func (consumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (commonConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
+func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (h commonConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	defer func() {
-		if err := recover(); err != nil {
-			tracer.Errorf(projName, "ConsumeClaim recover from panic: %v", err)
-		}
-	}()
+func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+
+	tracer.Trace(glob.ProjName, " Consuming claim ...")
+
+	// Receive processed messages
+	go h.markMessage(sess)
+
+	// Process messages
+	h.claimMessage(claim)
+
+	tracer.Trace(glob.ProjName, " Finished consuming claim")
+	return nil
+}
+
+func (h consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
 	for msg := range claim.Messages() {
-		fmt.Printf("Message topic:%q partition:%d offset:%d\n", msg.Topic, msg.Partition, msg.Offset)
-		err := h.callback(msg.Key, msg.Value)
-		if err != nil {
-			tracer.Errorf("Dispatcher", "Callback throws error: %v", err.Error())
-		}
-		sess.MarkMessage(msg, "")
+		h.pool.AddJob(msg)
 	}
-	return nil
+}
+
+func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
+	for result := range h.pool.Results() {
+		sess.MarkMessage(result, "")
+	}
 }

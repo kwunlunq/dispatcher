@@ -13,7 +13,7 @@ func Send(topic, key, val []byte)
 ### Consumer
 
 ```go
-func Subscribe(topic string, groupID string, callback ConsumerCallback)
+func Subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int)
 type ConsumerCallback func(key, value []byte) error
 ```
 

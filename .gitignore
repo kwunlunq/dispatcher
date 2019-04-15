@@ -7,3 +7,5 @@ examples/producer/debug
 examples/consumer/consumer\.exe
 
 examples/producer/producer\.exe
+
+examples/consumer/debug

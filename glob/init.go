@@ -1,4 +1,4 @@
-package dispatcher
+package glob
 
 import (
 	"crypto/tls"
@@ -7,16 +7,22 @@ import (
 	"log"
 	"strings"
 
+	"gitlab.paradise-soft.com.tw/glob/common/settings"
+
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/cfg"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
 var (
-	appConfig    *cfg.Config
-	saramaConfig *sarama.Config
-	ipList       string
-	brokerList   []string
+	// Public
+	SaramaConfig *sarama.Config
+	BrokerList   []string
+	Topic        string
+
+	appConfig *cfg.Config
+	ipList    string
+
 	// Producer
 	addr      *string // = flag.String("addr", ":8080", "The address to bind to")
 	brokers   *string // = flag.String("brokers", "10.200.252.180:9092,10.200.252.181:9092,10.200.252.182:9092,10.200.252.183:9092", "The Kafka brokers to connect to, as a comma separated list")
@@ -29,7 +35,7 @@ var (
 )
 
 const (
-	projName = "dispatcher"
+	ProjName = "dispatcher"
 )
 
 func init() {
@@ -41,6 +47,8 @@ func init() {
 
 func loadSaramaConfigs() {
 
+	// sarama.Logger = log.New(os.Stdout, "", log.Ltime)
+
 	c := sarama.NewConfig()
 
 	c.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
@@ -48,7 +56,9 @@ func loadSaramaConfigs() {
 	// c.Producer.Return.Successes = true       // Receive success msg
 
 	c.Version = sarama.V2_1_0_0 // To enable consumer group
+	// c.Version = "v2.1.0" // To enable consumer group
 	c.Consumer.Return.Errors = true
+	// c.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	tlsConfig := createTlsConfiguration()
 	if tlsConfig != nil {
@@ -56,14 +66,16 @@ func loadSaramaConfigs() {
 		c.Net.TLS.Enable = true
 	}
 
-	saramaConfig = c
+	SaramaConfig = c
 }
 
 func loadCommonConfigs() {
-	appConfig = cfg.Load("app.conf")
-	ipList = appConfig.GetValue(projName, "ip_list", "127.0.0.1")
-	brokerList = strings.Split(ipList, ",")
-	tracer.Infof("Kafka brokers: %s", strings.Join(brokerList, ", "))
+	// appConfig = cfg.Load("app.conf")
+	appConfig = settings.Config
+	ipList = appConfig.GetValue(ProjName, "brokers", "127.0.0.1")
+	BrokerList = strings.Split(ipList, ",")
+	tracer.Tracef(ProjName, " Kafka brokers: %v", strings.Join(BrokerList, ", "))
+	Topic = appConfig.GetValue(ProjName, "topic", "my-topic")
 }
 
 func loadProducerConfigs() {
@@ -73,7 +85,7 @@ func loadConsumerConfigs() {
 }
 
 func createTlsConfiguration() (t *tls.Config) {
-	tlsEnable := appConfig.GetValueAsBool(projName, "tls_enable", false)
+	tlsEnable := appConfig.GetValueAsBool(ProjName, " tls_enable", false)
 	if !tlsEnable {
 		return nil
 	}
