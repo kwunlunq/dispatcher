@@ -33,7 +33,7 @@ func Send(topic string, key, value []byte) {
 		}
 	}()
 
-	tracer.Tracef(glob.ProjName, " Sending message [%v/%v/%v] ...\n", topic, string(key[:]), string(value[:]))
+	// tracer.Tracef(glob.ProjName, " Sending message [%v/%v/%v] ...\n", topic, string(key[:]), string(value[:]))
 
 	select {
 	case producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.ByteEncoder(key), Value: sarama.ByteEncoder(value)}:
@@ -41,7 +41,7 @@ func Send(topic string, key, value []byte) {
 		tracer.Errorf(glob.ProjName, " Failed to produce message: %v", err)
 	}
 
-	tracer.Tracef(glob.ProjName, " Message [%v/%v/%v] sent\n", topic, string(key[:]), string(value[:]))
+	tracer.Tracef(glob.ProjName, " Sent: [%v/%v/%v]\n", topic, string(key[:]), string(value[:]))
 }
 
 func getSaramaProducer() (p sarama.AsyncProducer, err error) {

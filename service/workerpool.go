@@ -1,7 +1,7 @@
 package service
 
 import (
-	"strconv"
+	"fmt"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 
@@ -48,7 +48,7 @@ func (p workerPool) Results() <-chan *sarama.ConsumerMessage {
 
 func (p workerPool) worker(id int) {
 
-	workerID := glob.ProjName + strconv.Itoa(id)
+	workerID := fmt.Sprintf("%v-%v", glob.ProjName, id)
 	tracer.Trace(workerID, " Worker starts working ...")
 
 	// Avoid explosion
@@ -60,13 +60,21 @@ func (p workerPool) worker(id int) {
 
 	// Process message
 	for job := range p.jobs {
+
 		tracer.Tracef(workerID, " Starting work [%v/%v] ...", string(job.Key[:]), string(job.Value[:]))
+
+		p.doJob(workerID, job)
+
+		tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), string(job.Value[:]))
+		p.results <- job
+	}
+}
+
+func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
+	if p.callback != nil {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
 			tracer.Errorf(workerID, " Error doing work [%v/%v]: %v", string(job.Key[:]), string(job.Value[:]), err.Error())
-		} else {
-			tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), string(job.Value[:]))
 		}
-		p.results <- job
 	}
 }

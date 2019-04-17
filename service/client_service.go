@@ -35,6 +35,6 @@ func (s *clientService) create() (client sarama.Client, err error) {
 		tracer.Errorf(glob.ProjName, "Error creating client: %v", err.Error())
 		return
 	}
-	tracer.Trace(glob.ProjName, "Client created successfully")
+	tracer.Trace(glob.ProjName, " Client created")
 	return
 }

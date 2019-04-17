@@ -55,7 +55,7 @@ func (c *config) loadSaramaConfigs() {
 
 	brokers := c.appConfig.GetValue(ProjName, "brokers", "127.0.0.1")
 	c.BrokerList = strings.Split(brokers, ",")
-	tracer.Tracef(ProjName, " Kafka brokers: %v", strings.Join(c.BrokerList, ", "))
+	tracer.Infof(ProjName, " Kafka brokers: %v", strings.Join(c.BrokerList, ", "))
 
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)

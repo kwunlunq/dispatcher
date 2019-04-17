@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sync"
 	"time"
 
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
@@ -9,20 +10,26 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-var TopicService = topicService{}
+var TopicService = &topicService{lock: &sync.Mutex{}}
 
 type topicService struct {
 	topics []string
+	lock   *sync.Mutex
 }
 
-func (s topicService) Create(topic string) (err error) {
-	if s.checkExisted(topic) {
-		return nil
+func (s *topicService) Create(topic string) (err error) {
+	if !s.checkExisted(topic) {
+		s.lock.Lock()
+		if !s.checkExisted(topic) {
+			s.create(topic)
+			s.topics = append(s.topics, topic)
+		}
+		s.lock.Unlock()
 	}
-	return s.create(topic)
+	return nil
 }
 
-func (s topicService) Remove(topics ...string) (err error) {
+func (s *topicService) Remove(topics ...string) (err error) {
 
 	broker, err := ClientService.Get().Controller()
 	if err != nil {
@@ -47,7 +54,7 @@ func (s topicService) Remove(topics ...string) (err error) {
 	return
 }
 
-func (s topicService) checkExisted(topic string) (existed bool) {
+func (s *topicService) checkExisted(topic string) (existed bool) {
 	for _, t := range s.topics {
 		if t == topic {
 			return true
@@ -67,7 +74,7 @@ func (s topicService) checkExisted(topic string) (existed bool) {
 	// return
 }
 
-func (s topicService) create(topic string) (err error) {
+func (s *topicService) create(topic string) (err error) {
 	var broker *sarama.Broker
 	broker, err = ClientService.Get().Controller()
 	if err != nil {
@@ -105,7 +112,7 @@ func (s topicService) create(topic string) (err error) {
 		tracer.Errorf(glob.ProjName, "Error creating topic: %v", err.Error())
 		return
 	}
-	tracer.Tracef(glob.ProjName, "Topic [%v] created", topic)
+	tracer.Infof(glob.ProjName, " Topic created: %v", topic)
 
 	// close connection to broker
 	// broker.Close()

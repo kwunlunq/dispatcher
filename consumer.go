@@ -61,7 +61,7 @@ func subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 		}
 	}()
 
-	tracer.Tracef(glob.ProjName, " Listening topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
+	tracer.Infof(glob.ProjName, " Listening on topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
 
 	// Iterate over consumer sessions.
 	ctx := context.Background()
