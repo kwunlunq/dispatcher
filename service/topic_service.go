@@ -29,17 +29,17 @@ func (s *topicService) Create(topic string) (err error) {
 	return nil
 }
 
-func (s *topicService) Remove(topics ...string) (err error) {
+func (s *topicService) Remove(topics ...string) {
 
 	broker, err := ClientService.Get().Controller()
 	if err != nil {
 		tracer.Errorf(glob.ProjName, "Error retrieving broker: %v", err.Error())
-		return err
+		// return err
 	}
 	_, err = broker.Connected()
 	if err != nil {
 		tracer.Errorf(glob.ProjName, "Error connecting by broker: %v", err.Error())
-		return err
+		// return err
 	}
 	request := &sarama.DeleteTopicsRequest{
 		Timeout: time.Second * 15,
@@ -112,7 +112,7 @@ func (s *topicService) create(topic string) (err error) {
 		tracer.Errorf(glob.ProjName, "Error creating topic: %v", err.Error())
 		return
 	}
-	tracer.Infof(glob.ProjName, " Topic created: %v", topic)
+	tracer.Infof(glob.ProjName, " Topic created: %v.", topic)
 
 	// close connection to broker
 	// broker.Close()

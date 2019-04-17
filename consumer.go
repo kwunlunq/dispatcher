@@ -30,7 +30,8 @@ func subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 
 	service.TopicService.Create(topic)
 
-	client := service.ClientService.Get()
+	client := service.ClientService.GetNew()
+	// client := service.ClientService.Get()
 
 	// Close client in the end
 	defer func() {
@@ -57,7 +58,7 @@ func subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 	go func() {
 		for err := range group.Errors() {
 			tracer.Errorf(glob.ProjName, "Consumer group err: %v", err.Error())
-			panic(err)
+			// panic(err)
 		}
 	}()
 
@@ -91,7 +92,7 @@ func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
-	tracer.Trace(glob.ProjName, " Consuming claim ...")
+	tracer.Trace(glob.ProjName, " Consumer is ready.")
 
 	// Receive processed messages
 	go h.markMessage(sess)
@@ -99,7 +100,7 @@ func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sa
 	// Process messages
 	h.claimMessage(claim)
 
-	tracer.Trace(glob.ProjName, " Finished consuming claim")
+	tracer.Trace(glob.ProjName, " Finished consuming claim.")
 	return nil
 }
 

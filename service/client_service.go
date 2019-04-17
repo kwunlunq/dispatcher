@@ -15,6 +15,11 @@ type clientService struct {
 
 var ClientService = &clientService{lock: &sync.Mutex{}}
 
+func (s *clientService) GetNew() sarama.Client {
+	client, _ := s.create()
+	return client
+}
+
 func (s *clientService) Get() sarama.Client {
 	if s.client == nil {
 		s.lock.Lock()
@@ -35,6 +40,6 @@ func (s *clientService) create() (client sarama.Client, err error) {
 		tracer.Errorf(glob.ProjName, "Error creating client: %v", err.Error())
 		return
 	}
-	tracer.Trace(glob.ProjName, " Client created")
+	tracer.Trace(glob.ProjName, " Client created.")
 	return
 }

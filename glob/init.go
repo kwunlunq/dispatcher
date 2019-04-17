@@ -70,7 +70,8 @@ func (c *config) loadSaramaConfigs() {
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
-	// tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
+	tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
+	// tmpC.Consumer.Offsets.Initial = sarama.
 
 	// TLS
 	tlsConfig := c.createTlsConfiguration()
@@ -78,6 +79,8 @@ func (c *config) loadSaramaConfigs() {
 		tmpC.Net.TLS.Config = tlsConfig
 		tmpC.Net.TLS.Enable = true
 	}
+
+	tmpC.ClientID = "dispatcher"
 
 	c.SaramaConfig = tmpC
 }
