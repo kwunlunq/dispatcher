@@ -91,6 +91,8 @@ github.com/tealeg/xlsx v1.0.3/go.mod h1:uxu5UY2ovkuRPWKQ8Q7JG0JbSivrISjdPzZQKeo7
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
+gitlab.paradise-soft.com.tw/backend/yaitoo v0.0.0-20190408074755-d2eb49ea3616 h1:mvGaW5CdAjYcEViTslKmfMqw1LxFuKTVHd3TT1kN7Uo=
+gitlab.paradise-soft.com.tw/backend/yaitoo v0.0.0-20190408074755-d2eb49ea3616/go.mod h1:TVrWQXKd7RjWmLWo+0YwqRJMsRj09a8880AGaOZtFV4=
 gitlab.paradise-soft.com.tw/backend/yaitoo v0.0.0-20190410022549-9e060aac058c h1:evk/oZqZ2wChgRvGDifQTLxIaoLmpUy5vGonymKQIeY=
 gitlab.paradise-soft.com.tw/backend/yaitoo v0.0.0-20190410022549-9e060aac058c/go.mod h1:TVrWQXKd7RjWmLWo+0YwqRJMsRj09a8880AGaOZtFV4=
 gitlab.paradise-soft.com.tw/glob/common v0.0.0-20190314075321-341ea0e8ed1f h1:gS8Lfhquonr6lxs3GteOERYa3+PTHGPGhbl9at3UnBs=
