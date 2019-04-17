@@ -1,11 +1,11 @@
 package dispatcher
 
 import (
-	"log"
 	"sync"
 
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 
 	"github.com/Shopify/sarama"
 )
@@ -16,6 +16,8 @@ var (
 )
 
 func Send(topic string, key, value []byte) {
+
+	service.TopicService.Create(topic)
 
 	producer, err := getSaramaProducer()
 	if err != nil {
@@ -60,10 +62,12 @@ func newSaramaProducer() (saramaProducer sarama.AsyncProducer, err error) {
 	// stronger consistency guarantees:
 	// - For your broker, set `unclean.leader.election.enable` to false
 	// - For the topic, you could increase `min.insync.replicas`.
-	saramaProducer, err = sarama.NewAsyncProducer(glob.BrokerList, glob.SaramaConfig)
+	// saramaProducer, err = sarama.NewAsyncProducer(glob.BrokerList, glob.SaramaConfig)
+	saramaProducer, err = sarama.NewAsyncProducerFromClient(service.ClientService.Get())
 
 	if err != nil {
-		log.Fatalln("Failed to start Sarama producer:", err)
+		// log.Fatalln("Failed to start Sarama producer:", err)
+		tracer.Errorf(glob.ProjName, "Failed to start Sarama producer:", err.Error())
 	}
 
 	// saramaProducer.Close()

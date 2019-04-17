@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	dispatcher.Subscribe(glob.Topic, "my-group-id", callback, 5)
+	dispatcher.Subscribe(glob.Config.Topic, "my-group-id", callback, 5)
 	time.Sleep(time.Hour)
 }
 

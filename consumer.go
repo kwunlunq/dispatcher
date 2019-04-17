@@ -3,9 +3,10 @@ package dispatcher
 import (
 	"context"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
-
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
+
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 
@@ -22,10 +23,14 @@ func Subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 func subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
 
 	// Start with a client
-	client, err := sarama.NewClient(glob.BrokerList, glob.SaramaConfig)
-	if err != nil {
-		panic(err)
-	}
+	// client, err := sarama.NewClient(glob.BrokerList, glob.SaramaConfig)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	service.TopicService.Create(topic)
+
+	client := service.ClientService.Get()
 
 	// Close client in the end
 	defer func() {
@@ -63,7 +68,7 @@ func subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 	for {
 		topics := []string{topic}
 
-		handler := consumerHandler{model.MakeWorkerPool(callback, asyncNum)}
+		handler := consumerHandler{service.WorkerPoolService.MakeWorkerPool(callback, asyncNum)}
 
 		err := group.Consume(ctx, topics, handler)
 		if err != nil {
@@ -73,7 +78,7 @@ func subscribe(topic string, groupID string, callback model.ConsumerCallback, as
 }
 
 type consumerHandler struct {
-	pool model.WorkerPool
+	pool service.WorkerPool
 }
 
 func (consumerHandler) Setup(_ sarama.ConsumerGroupSession) error {

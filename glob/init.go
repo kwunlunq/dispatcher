@@ -14,14 +14,29 @@ import (
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
-var (
-	// Public
-	SaramaConfig *sarama.Config
-	BrokerList   []string
-	Topic        string
+var Config config
 
-	appConfig *cfg.Config
-	ipList    string
+const ProjName = "dispatcher"
+
+func init() {
+	Config = newConfig()
+}
+
+func newConfig() config {
+	c := &config{}
+	c.appConfig = settings.Config
+	c.loadSaramaConfigs()
+	return *c
+}
+
+type config struct {
+	// Public
+	Topic      string
+	BrokerList []string
+
+	SaramaConfig *sarama.Config
+	appConfig    *cfg.Config
+	ipList       string
 
 	// Producer
 	addr      *string // = flag.String("addr", ":8080", "The address to bind to")
@@ -32,71 +47,54 @@ var (
 	caFile    *string // = flag.String("ca", "", "The optional certificate authority file for TLS client authentication")
 	verifySsl *bool   // = flag.Bool("verify", false, "Optional verify ssl certificates chain")
 	// Consumer
-)
-
-const (
-	ProjName = "dispatcher"
-)
-
-func init() {
-	loadCommonConfigs()
-	loadProducerConfigs()
-	loadConsumerConfigs()
-	loadSaramaConfigs()
 }
 
-func loadSaramaConfigs() {
+func (c *config) loadSaramaConfigs() {
 
-	// sarama.Logger = log.New(os.Stdout, "", log.Ltime)
+	c.Topic = c.appConfig.GetValue(ProjName, "topic", "my-topic")
 
-	c := sarama.NewConfig()
+	brokers := c.appConfig.GetValue(ProjName, "brokers", "127.0.0.1")
+	c.BrokerList = strings.Split(brokers, ",")
+	tracer.Tracef(ProjName, " Kafka brokers: %v", strings.Join(c.BrokerList, ", "))
 
-	c.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	c.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-	// c.Producer.Return.Successes = true       // Receive success msg
+	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
+	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
-	// c.Version = sarama.V2_0_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
-	// c.Version = "v2.1.0" // To enable consumer group
-	c.Consumer.Return.Errors = true
-	// c.Consumer.Offsets.Initial = sarama.OffsetOldest
+	tmpC := sarama.NewConfig()
+	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 
-	tlsConfig := createTlsConfiguration()
+	// Producer
+	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+	// tmpC.Producer.Return.Successes = true       // Receive success msg
+
+	// Consumer
+	tmpC.Consumer.Return.Errors = true
+	// tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
+
+	// TLS
+	tlsConfig := c.createTlsConfiguration()
 	if tlsConfig != nil {
-		c.Net.TLS.Config = tlsConfig
-		c.Net.TLS.Enable = true
+		tmpC.Net.TLS.Config = tlsConfig
+		tmpC.Net.TLS.Enable = true
 	}
 
-	SaramaConfig = c
+	c.SaramaConfig = tmpC
 }
 
-func loadCommonConfigs() {
-	// appConfig = cfg.Load("app.conf")
-	appConfig = settings.Config
-	ipList = appConfig.GetValue(ProjName, "brokers", "127.0.0.1")
-	BrokerList = strings.Split(ipList, ",")
-	tracer.Tracef(ProjName, " Kafka brokers: %v", strings.Join(BrokerList, ", "))
-	Topic = appConfig.GetValue(ProjName, "topic", "my-topic")
-}
-
-func loadProducerConfigs() {
-}
-
-func loadConsumerConfigs() {
-}
-
-func createTlsConfiguration() (t *tls.Config) {
-	tlsEnable := appConfig.GetValueAsBool(ProjName, " tls_enable", false)
+func (c *config) createTlsConfiguration() (t *tls.Config) {
+	tlsEnable := c.appConfig.GetValueAsBool(ProjName, " tls_enable", false)
 	if !tlsEnable {
 		return nil
 	}
 
-	if *certFile != "" && *keyFile != "" && *caFile != "" {
-		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+	if *c.certFile != "" && *c.keyFile != "" && *c.caFile != "" {
+		cert, err := tls.LoadX509KeyPair(*c.certFile, *c.keyFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		caCert, err := ioutil.ReadFile(*caFile)
+		caCert, err := ioutil.ReadFile(*c.caFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -107,7 +105,7 @@ func createTlsConfiguration() (t *tls.Config) {
 		t = &tls.Config{
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
-			InsecureSkipVerify: *verifySsl,
+			InsecureSkipVerify: *c.verifySsl,
 		}
 	}
 	// will be nil by default if nothing is provided
