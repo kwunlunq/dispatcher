@@ -18,8 +18,8 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"10 Messages", args{10}, 10},
 		{"15 Messages", args{15}, 15},
-		{"50k Messages", args{50000}, 50000},
-		{"500k Messages", args{500000}, 500000},
+		// {"50k Messages", args{50000}, 50000},
+		// {"500k Messages", args{500000}, 500000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

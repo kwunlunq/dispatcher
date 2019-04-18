@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
+	"runtime/debug"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 
@@ -18,19 +20,23 @@ type workerPoolService struct{}
 type WorkerPool interface {
 	AddJob(job *sarama.ConsumerMessage)
 	Results() <-chan *sarama.ConsumerMessage
+	// Errors() <-chan *model.ConsumerCallbackError
 }
 
 type workerPool struct {
-	jobs     chan *sarama.ConsumerMessage
-	results  chan *sarama.ConsumerMessage
-	callback model.ConsumerCallback
+	jobs         chan *sarama.ConsumerMessage
+	results      chan *sarama.ConsumerMessage
+	errors       chan *model.ConsumerCallbackError
+	callback     model.ConsumerCallback
+	isResultPool bool
 }
 
-func (this workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, poolSize int) WorkerPool {
+func (this workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, poolSize int, isResultPool bool) WorkerPool {
 	w := workerPool{
-		jobs:     make(chan *sarama.ConsumerMessage, poolSize),
-		results:  make(chan *sarama.ConsumerMessage, poolSize),
-		callback: callback,
+		jobs:         make(chan *sarama.ConsumerMessage, poolSize),
+		results:      make(chan *sarama.ConsumerMessage, poolSize),
+		callback:     callback,
+		isResultPool: isResultPool,
 	}
 	for i := 0; i < poolSize; i++ {
 		go w.worker(i)
@@ -46,35 +52,47 @@ func (p workerPool) Results() <-chan *sarama.ConsumerMessage {
 	return p.results
 }
 
+// func (p workerPool) Errors() <-chan *model.ConsumerCallbackError {
+// 	return p.errors
+// }
+
 func (p workerPool) worker(id int) {
 
 	workerID := fmt.Sprintf("%v-%v", glob.ProjName, id)
 	tracer.Trace(workerID, " Worker starts working ...")
 
-	// Avoid explosion
 	defer func() {
 		if err := recover(); err != nil {
-			tracer.Errorf(workerID, " Panic invoking user's callback: %v", err)
+			tracer.Errorf(workerID, " Panic invoking user's callback: %v", string(debug.Stack()))
 		}
 	}()
 
-	// Process message
 	for job := range p.jobs {
-
-		tracer.Tracef(workerID, " Starting work [%v/%v] ...", string(job.Key[:]), string(job.Value[:]))
-
 		p.doJob(workerID, job)
+	}
+}
 
-		tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), string(job.Value[:]))
-		p.results <- job
+func (p workerPool) errSender() {
+	tracer.Trace(glob.ProjName, " Err worker starts working ...")
+	for e := range p.errors {
+		bytes, _ := json.Marshal(e)
+		ProducerService.send(e.Message.Topic+"_ERR", []byte(e.Message.Key), bytes)
 	}
 }
 
 func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
+	tracer.Tracef(workerID, " Starting work [%v/%v] ...", string(job.Key[:]), string(job.Value[:]))
+
 	if p.callback != nil {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
+			p.errors <- &model.ConsumerCallbackError{Message: job, Err: err}
 			tracer.Errorf(workerID, " Error doing work [%v/%v]: %v", string(job.Key[:]), string(job.Value[:]), err.Error())
 		}
 	}
+
+	if p.isResultPool {
+		p.results <- job
+	}
+	tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), string(job.Value[:]))
 }

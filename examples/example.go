@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
+
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
@@ -14,9 +16,10 @@ var (
 )
 
 func main() {
-	testCount := 5
-	received := Integration(testCount)
-	fmt.Printf("Produced: %v, Received: %v", testCount, received)
+	// testCount := 5
+	// received := Integration(testCount)
+	// fmt.Printf("Produced: %v, Received: %v", testCount, received)
+	fmt.Println(service.TopicService.List())
 }
 
 func Integration(msgCount int) int {
@@ -50,13 +53,13 @@ func multipleConsProds(msgCount int) int {
 }
 
 func Consumer(topic string) {
-	dispatcher.Subscribe(topic, "my-group-id", callback, 5)
+	dispatcher.SubscribeGroup(topic, "my-group-id", callback, 5)
 }
 
 func Producer(topic string, count int) {
 	for i := 1; i <= count; i++ {
 		msg := fmt.Sprintf("%v. ts-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
-		dispatcher.Send(topic, []byte("go-dis"), []byte(msg))
+		dispatcher.Send(topic, []byte("go-dis"), []byte(msg), nil)
 	}
 }
 

@@ -61,17 +61,12 @@ func (s *topicService) checkExisted(topic string) (existed bool) {
 		}
 	}
 	return false
-	// topics, err := ClientService.Get().Topics()
-	// if err != nil {
-	// 	tracer.Errorf(glob.ProjName, "Error getting topics: %v", err.Error())
-	// 	return false, err
-	// }
-	// tracer.Tracef(glob.ProjName, "Existing topics: %v", topics)
+}
 
-	// log.Println(ClientService.Get().RefreshMetadata())
-	// topics, err = ClientService.Get().Topics()
-	// log.Println(topics, err)
-	// return
+func (s *topicService) List() (topics []string) {
+	ClientService.Get().RefreshMetadata()
+	topics, _ = ClientService.Get().Topics()
+	return
 }
 
 func (s *topicService) create(topic string) (err error) {
