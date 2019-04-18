@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	// produced int = 50
 	received int
 )
 
@@ -22,10 +21,18 @@ func main() {
 
 func Integration(msgCount int) int {
 	received = 0
+
 	Consumer(glob.Config.Topic)
 	time.Sleep(5 * time.Second)
+
 	Producer(glob.Config.Topic, msgCount)
-	time.Sleep(10 * time.Second)
+
+	sleepTime := 15
+	if msgCount >= 10000 {
+		sleepTime = 40
+	}
+	time.Sleep(time.Duration(sleepTime) * time.Second)
+
 	return received
 }
 
@@ -54,8 +61,6 @@ func Producer(topic string, count int) {
 }
 
 func callback(key, value []byte) error {
-	// tracer.Tracef("TEST", "Received msg [%v/%v]\n", string(key[:]), string(value[:]))
-	// tracer.Tracef("TEST", "Processed msg [%v/%v]\n", string(key[:]), string(value[:]))
 	received++
 	return nil
 }

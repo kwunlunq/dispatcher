@@ -67,7 +67,7 @@ func newSaramaProducer() (saramaProducer sarama.AsyncProducer, err error) {
 
 	if err != nil {
 		// log.Fatalln("Failed to start Sarama producer:", err)
-		tracer.Errorf(glob.ProjName, "Failed to start Sarama producer:", err.Error())
+		tracer.Errorf(glob.ProjName, "Failed to start Sarama producer: %v", err.Error())
 	}
 
 	// saramaProducer.Close()
