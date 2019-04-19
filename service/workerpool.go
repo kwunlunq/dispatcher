@@ -35,12 +35,14 @@ func (this workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, po
 	w := workerPool{
 		jobs:         make(chan *sarama.ConsumerMessage, poolSize),
 		results:      make(chan *sarama.ConsumerMessage, poolSize),
+		errors:       make(chan *model.ConsumerCallbackError, 1000),
 		callback:     callback,
 		isResultPool: isResultPool,
 	}
 	for i := 0; i < poolSize; i++ {
 		go w.worker(i)
 	}
+	go w.errSender()
 	return w
 }
 
@@ -63,7 +65,7 @@ func (p workerPool) worker(id int) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			tracer.Errorf(workerID, " Panic invoking user's callback: %v", string(debug.Stack()))
+			tracer.Errorf(workerID, " Panic on user's callback: %v", string(debug.Stack()))
 		}
 	}()
 
@@ -72,27 +74,28 @@ func (p workerPool) worker(id int) {
 	}
 }
 
-func (p workerPool) errSender() {
-	tracer.Trace(glob.ProjName, " Err worker starts working ...")
-	for e := range p.errors {
-		bytes, _ := json.Marshal(e)
-		ProducerService.send(e.Message.Topic+"_ERR", []byte(e.Message.Key), bytes)
-	}
-}
-
 func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
-	tracer.Tracef(workerID, " Starting work [%v/%v] ...", string(job.Key[:]), string(job.Value[:]))
+	tracer.Tracef(workerID, " Starting work [%v/%v/%v] ...", job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
 
 	if p.callback != nil {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
-			p.errors <- &model.ConsumerCallbackError{Message: job, Err: err}
-			tracer.Errorf(workerID, " Error doing work [%v/%v]: %v", string(job.Key[:]), string(job.Value[:]), err.Error())
+			p.errors <- &model.ConsumerCallbackError{Message: job, ErrStr: err.Error()}
+			tracer.Errorf(workerID, " Error doing work [%v/%v]: %v", string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
 		}
 	}
 
 	if p.isResultPool {
 		p.results <- job
 	}
-	tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), string(job.Value[:]))
+	tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), glob.TrimBytes(job.Value))
+}
+
+func (p workerPool) errSender() {
+	tracer.Trace(glob.ProjName, " Err worker starts working ...")
+	for e := range p.errors {
+		bytes, _ := json.Marshal(e)
+		tracer.Tracef(glob.ProjName, " Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
+		ProducerService.send(glob.ErrTopic(e.Message.Topic), []byte(e.Message.Key), bytes)
+	}
 }

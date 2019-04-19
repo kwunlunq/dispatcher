@@ -5,14 +5,14 @@ import (
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 )
 
-func Send(topic string, key, value []byte, errHandler model.ProducerErrHandler) {
+func Send(topic string, key, value []byte, errHandler model.ProducerCustomerErrHandler) {
 	service.ProducerService.Send(topic, key, value, errHandler)
 }
 
 func SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
-	service.ConsummerService.SubscribeGroup(topic, groupID, callback, asyncNum)
+	service.ConsumerService.SubscribeGroup(topic, groupID, callback, asyncNum)
 }
 
 func Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
-	service.ConsummerService.Subscribe(topic, callback, asyncNum)
+	service.ConsumerService.Subscribe(topic, callback, asyncNum)
 }

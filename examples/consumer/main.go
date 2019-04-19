@@ -15,8 +15,8 @@ func main() {
 }
 
 func callback(key, value []byte) error {
-	tracer.Tracef("TEST", "Received msg [%v/%v]\n", string(key[:]), string(value[:]))
+	tracer.Tracef("TEST", "Received msg [%v/%v]\n", string(key[:]), glob.TrimBytes(v))
 	time.Sleep(30 * time.Second)
-	tracer.Tracef("TEST", "Processed msg [%v/%v]\n", string(key[:]), string(value[:]))
+	tracer.Tracef("TEST", "Processed msg [%v/%v]\n", string(key[:]), glob.TrimBytes(v))
 	return nil
 }

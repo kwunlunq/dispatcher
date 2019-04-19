@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
@@ -9,28 +12,45 @@ import (
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 )
 
-var ConsummerService = &consummerService{}
+var ConsumerService = &consumerService{uuid.New().String(), []string{}}
 
-type consummerService struct{}
+type consumerService struct {
+	defaultGroupID string
+	topics         []string
+}
 
-func (c consummerService) SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
+	c.SubscribeGroup(topic, "", callback, asyncNum)
+}
+
+func (c *consumerService) SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
 	if asyncNum <= 0 {
 		asyncNum = 1
 	}
-	go c.subscribeGroup(topic, groupID, callback, asyncNum)
+	go c.subscribe(topic, groupID, callback, asyncNum)
 }
 
-func (c consummerService) Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
-	if asyncNum <= 0 {
-		asyncNum = 1
+func (c *consumerService) isExisted(t string) bool {
+	for _, topic := range c.topics {
+		if topic == t {
+			return true
+		}
 	}
-	go c.subscribe(topic, callback, asyncNum)
+	return false
 }
 
-func (c consummerService) subscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+
+	if c.isExisted(topic) {
+		return
+	}
+
+	c.addTopic(topic)
 
 	// Create topic
 	TopicService.Create(topic)
+
+	tracer.Tracef(glob.ProjName, "Subscribing to %v", topic)
 
 	// Create client
 	client := ClientService.GetNew()
@@ -42,6 +62,10 @@ func (c consummerService) subscribeGroup(topic string, groupID string, callback 
 			tracer.Errorf(glob.ProjName, "Error closing client: %v", err.Error())
 		}
 	}()
+
+	if groupID == "" {
+		groupID = c.defaultGroupID
+	}
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(groupID, client)
@@ -81,7 +105,12 @@ func (c consummerService) subscribeGroup(topic string, groupID string, callback 
 	}
 }
 
-func (c consummerService) subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
+func (c *consumerService) addTopic(topic string) {
+	c.topics = append(c.topics, topic)
+}
+
+/*
+func (c *consumerService) subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
 
 	// Create topic
 	TopicService.Create(topic)
@@ -130,6 +159,7 @@ func (c consummerService) subscribe(topic string, callback model.ConsumerCallbac
 		pool.AddJob(msg)
 	}
 }
+*/
 
 type consumerHandler struct {
 	pool WorkerPool
@@ -165,6 +195,12 @@ func (h consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
 
 func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
 	for result := range h.pool.Results() {
+		time.Sleep(time.Second)
+		if result.Offset%2 == 0 {
+			tracer.Tracef("TESTING", " Message skipped [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
+			continue
+		}
 		sess.MarkMessage(result, "")
+		tracer.Tracef("TESTING", " Message marked [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
 	}
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+### Version 1.3.0 (2019-04-18) 
+
+New Feature:
+- Func Subscribe() become SubscriberGroup(), adding new func Subscribe which no groupID is needed.
+- Send() has new param: ErrCallback, to process error when something went wrong during consumer's callback.
+
+Improment
+- Panic on user's callback will now print complete stacktrace.
+
 #### Version 1.2.0 (2019-04-17)
 
 Improvment
