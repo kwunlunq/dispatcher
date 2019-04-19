@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -195,12 +194,12 @@ func (h consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
 
 func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
 	for result := range h.pool.Results() {
-		time.Sleep(time.Second)
-		if result.Offset%2 == 0 {
-			tracer.Tracef("TESTING", " Message skipped [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
-			continue
-		}
+		// time.Sleep(time.Second)
+		// if result.Offset%2 == 0 {
+		// 	tracer.Tracef("TESTING", " Message skipped [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
+		// 	continue
+		// }
 		sess.MarkMessage(result, "")
-		tracer.Tracef("TESTING", " Message marked [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
+		// tracer.Tracef("TESTING", " Message marked [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
 	}
 }
