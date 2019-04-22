@@ -8,10 +8,12 @@ import (
 )
 
 func main() {
-	dispatcher.SubscribeGroup(glob.Config.Topic, "my-group-id", callback, 5)
-	time.Sleep(time.Hour)
+	dispatcher.Subscribe(glob.Config.Topic, callback, 5)
+	time.Sleep(time.Hour) // Listening...
 }
 
 func callback(key, value []byte) error {
+	// Process message ...
+	// return error if there's one
 	return nil
 }
