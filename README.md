@@ -2,7 +2,7 @@
 
 Dispatcher主要功能為透過kafaka任務調度及消息推送
 
-參考 [examples](./examples) 使用範例
+參考 [producer](./examples/producer/main.go), [consumer](./examples/consumer/main.go) 使用範例
 
 ### Producer
 
