@@ -2,43 +2,10 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 )
-
-func TestIntegration(t *testing.T) {
-	service.TopicService.Remove(glob.Config.Topic)
-	time.Sleep(time.Second)
-	type args struct {
-		msgCount int
-	}
-	tests := []struct {
-		name string
-		args args
-		want int
-	}{
-		{"10 Messages", args{10}, 10},
-		{"15 Messages", args{15}, 15},
-		{"15 Messages", args{15}, 15},
-		// {"50k Messages", args{50000}, 50000},
-		// {"500k Messages", args{500000}, 500000},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Integration(tt.args.msgCount); got != tt.want {
-				t.Errorf("Integration() = %v, want %v", got, tt.want)
-			} else {
-				t.Log("Great")
-			}
-		})
-	}
-	service.TopicService.Remove(glob.Config.Topic)
-	// service.TopicService.Remove(glob.Config.Topic+"_ERR")
-	// service.TopicService.Remove("disp.test.1")
-	// service.TopicService.Remove("disp.test.2")
-}
 
 func BenchmarkProducer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -65,4 +32,34 @@ func TestMultiConsProds(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIntegration(t *testing.T) {
+	type args struct {
+		msgCount int
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantReceived int
+		wantErrCount int
+	}{
+		{"5 Messages", args{5}, 5, 5},
+		{"50 Messages", args{50}, 50, 50},
+		// {"50k Messages", args{50000}, 50000, 50000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotReceived, gotErrCount := Integration(tt.args.msgCount)
+			if gotReceived != tt.wantReceived {
+				t.Errorf("Integration() gotReceived = %v, want %v", gotReceived, tt.wantReceived)
+			}
+			if gotErrCount != tt.wantErrCount {
+				t.Errorf("Integration() gotErrCount = %v, want %v", gotErrCount, tt.wantErrCount)
+			}
+			t.Logf("發送:%v 接收:%v 錯誤處理:%v", tt.args.msgCount, gotReceived, tt.wantReceived)
+		})
+	}
+	// time.Sleep(2 * time.Second)
+	// service.TopicService.Remove("disp.testing", "disp.testing_ERR")
 }

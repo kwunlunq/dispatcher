@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"gitlab.paradise-soft.com.tw/glob/common/settings"
 
 	"github.com/Shopify/sarama"
@@ -33,6 +35,7 @@ type config struct {
 	// Public
 	Topic      string
 	BrokerList []string
+	GroupID    string
 
 	SaramaConfig *sarama.Config
 	appConfig    *cfg.Config
@@ -52,6 +55,7 @@ type config struct {
 func (c *config) loadSaramaConfigs() {
 
 	c.Topic = c.appConfig.GetValue(ProjName, "topic", "my-topic")
+	c.GroupID = c.appConfig.GetValue(ProjName, "group_id", uuid.New().String())
 
 	brokers := c.appConfig.GetValue(ProjName, "brokers", "127.0.0.1")
 	c.BrokerList = strings.Split(brokers, ",")
@@ -70,8 +74,8 @@ func (c *config) loadSaramaConfigs() {
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
-	tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
-	// tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
+	// tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
+	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	// TLS
 	tlsConfig := c.createTlsConfiguration()

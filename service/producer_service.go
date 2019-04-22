@@ -23,7 +23,7 @@ type producerService struct {
 
 func (p *producerService) Send(topic string, key, value []byte, customErrHandler model.ProducerCustomerErrHandler) {
 	p.send(topic, key, value)
-	ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(customErrHandler), 1)
+	ConsumerService.SubscribeGroup(glob.ErrTopic(topic), glob.Config.GroupID, makeErrCallback(customErrHandler), 1)
 }
 
 func (p *producerService) send(topic string, key, value []byte) {
@@ -76,15 +76,14 @@ func makeErrCallback(producerErrHandler model.ProducerCustomerErrHandler) model.
 			tracer.Errorf(glob.ProjName, " Panic on err handler: %v", string(debug.Stack()))
 		}
 	}()
-	return func(key, value []byte) (err error) {
-		tracer.Trace(glob.ProjName, "Received err from consumer")
+	return func(key, value []byte) error {
+		// tracer.Trace(glob.ProjName, "Received err from consumer")
 		var item model.ConsumerCallbackError
-		err = json.Unmarshal(value, &item)
+		err := json.Unmarshal(value, &item)
 		if err != nil {
 			tracer.Errorf(glob.ProjName, "Error parsing callbackErr: %v", err.Error())
-			return
 		}
 		producerErrHandler(item.Message.Key, item.Message.Value, errors.New(item.ErrStr))
-		return
+		return nil
 	}
 }

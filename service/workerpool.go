@@ -95,7 +95,7 @@ func (p workerPool) errSender() {
 	tracer.Trace(glob.ProjName, " Err worker starts working ...")
 	for e := range p.errors {
 		bytes, _ := json.Marshal(e)
-		tracer.Tracef(glob.ProjName, " Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
+		// tracer.Tracef(glob.ProjName, " Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
 		ProducerService.send(glob.ErrTopic(e.Message.Topic), []byte(e.Message.Key), bytes)
 	}
 }

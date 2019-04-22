@@ -22,6 +22,8 @@ var (
 
 func main() {
 	// dispatcher.Subscribe(topic, callback, 5)
+	// service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing_ERR_ERR", "disp.test.1", "disp.test.2", "disp.test.1_ERR", "disp.test.2_ERR", "kevin3_ERR", "kevin3")
+	// time.Sleep(time.Second)
 	testCount := 5
 	Integration(testCount)
 	fmt.Printf("Produced: %v, Received: %v, Err: %v", testCount, received, errCount)
@@ -30,15 +32,15 @@ func main() {
 	time.Sleep(time.Hour)
 }
 
-func Integration(msgCount int) (received, errCount int) {
+func Integration(msgCount int) (int, int) {
 	received = 0
 	errCount = 0
 
-	ConsumerGroup(glob.Config.Topic)
-	// Consumer(glob.Config.Topic)
-	time.Sleep(5 * time.Second)
-
 	Producer(glob.Config.Topic, msgCount)
+	// time.Sleep(5 * time.Second)
+
+	// ConsumerGroup(glob.Config.Topic)
+	Consumer(glob.Config.Topic)
 
 	sleepTime := 15
 	if msgCount >= 10000 {
@@ -46,7 +48,7 @@ func Integration(msgCount int) (received, errCount int) {
 	}
 	time.Sleep(time.Duration(sleepTime) * time.Second)
 
-	return
+	return received, errCount
 }
 
 func MultiConsProds(msgCount int) int {
@@ -68,11 +70,11 @@ func MultiConsProds(msgCount int) int {
 }
 
 func ConsumerGroup(topic string) {
-	dispatcher.SubscribeGroup(topic, "my-group-id", callback, 5)
+	dispatcher.SubscribeGroup(topic, "my-group-id", callbackERR, 5)
 }
 
 func Consumer(topic string) {
-	dispatcher.Subscribe(topic, callback, 5)
+	dispatcher.Subscribe(topic, callbackERR, 5)
 }
 
 func Producer(topic string, count int) {

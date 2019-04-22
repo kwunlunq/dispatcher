@@ -9,10 +9,11 @@ func Send(topic string, key, value []byte, errHandler model.ProducerCustomerErrH
 	service.ProducerService.Send(topic, key, value, errHandler)
 }
 
-func SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
-	service.ConsumerService.SubscribeGroup(topic, groupID, callback, asyncNum)
-}
-
 func Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
 	service.ConsumerService.Subscribe(topic, callback, asyncNum)
+}
+
+// Deprecated, groupID should be given in app.conf
+func SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
+	service.ConsumerService.SubscribeGroup(topic, groupID, callback, asyncNum)
 }

@@ -3,19 +3,16 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 )
 
-var ConsumerService = &consumerService{uuid.New().String(), []string{}}
+var ConsumerService = &consumerService{[]string{}}
 
 type consumerService struct {
-	defaultGroupID string
-	topics         []string
+	subscribedTopics []string
 }
 
 func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
@@ -30,7 +27,7 @@ func (c *consumerService) SubscribeGroup(topic string, groupID string, callback 
 }
 
 func (c *consumerService) isExisted(t string) bool {
-	for _, topic := range c.topics {
+	for _, topic := range c.subscribedTopics {
 		if topic == t {
 			return true
 		}
@@ -42,6 +39,10 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 
 	if c.isExisted(topic) {
 		return
+	}
+
+	if groupID == "" {
+		groupID = glob.Config.GroupID
 	}
 
 	c.addTopic(topic)
@@ -61,10 +62,6 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 			tracer.Errorf(glob.ProjName, "Error closing client: %v", err.Error())
 		}
 	}()
-
-	if groupID == "" {
-		groupID = c.defaultGroupID
-	}
 
 	// Start a new consumer group
 	group, err := sarama.NewConsumerGroupFromClient(groupID, client)
@@ -105,7 +102,7 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 }
 
 func (c *consumerService) addTopic(topic string) {
-	c.topics = append(c.topics, topic)
+	c.subscribedTopics = append(c.subscribedTopics, topic)
 }
 
 /*
