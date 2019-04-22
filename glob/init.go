@@ -61,6 +61,8 @@ func (c *config) loadSaramaConfigs() {
 	c.BrokerList = strings.Split(brokers, ",")
 	tracer.Infof(ProjName, " Kafka brokers: %v", strings.Join(c.BrokerList, ", "))
 
+	maxMessageBytes := 20000000
+
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
@@ -71,11 +73,13 @@ func (c *config) loadSaramaConfigs() {
 	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	tmpC.Producer.Return.Successes = true          // Receive success msg
+	tmpC.Producer.MaxMessageBytes = maxMessageBytes
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
 	// tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
+	tmpC.Consumer.Fetch.Max = int32(maxMessageBytes)
 
 	// TLS
 	tlsConfig := c.createTlsConfiguration()
