@@ -48,7 +48,7 @@ func (p *producerService) send(topic string, key, value []byte) {
 	case msg := <-p.producer.Successes():
 		tracer.Tracef(glob.ProjName, " Sent [%v-%v/%v/%v]\n", msg.Topic, msg.Offset, string(key[:]), glob.TrimBytes(value))
 	case err := <-p.producer.Errors():
-		tracer.Errorf(glob.ProjName, " Failed to produce message: %v", err)
+		tracer.Errorf(glob.ProjName, " Failed to produce message: %v, len: %v", err, len(value))
 	}
 
 	// tracer.Tracef(glob.ProjName, " Sent: [%v/%v/%v]\n", topic, string(key[:]), glob.TrimBytes(value))
