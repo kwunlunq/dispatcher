@@ -10,10 +10,6 @@ examples/producer/producer\.exe
 
 examples/consumer/debug
 
-examples/consumer/app\.conf
-
-examples/producer/app\.conf
-
 examples/debug
 
 examples/debug\.test
