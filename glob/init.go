@@ -79,7 +79,6 @@ func (c *config) loadSaramaConfigs() {
 	tmpC.Consumer.Return.Errors = true
 	// tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
-	tmpC.Consumer.Fetch.Max = int32(maxMessageBytes)
 
 	// TLS
 	tlsConfig := c.createTlsConfiguration()
