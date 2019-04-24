@@ -65,7 +65,7 @@ func (p workerPool) worker(id int) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			tracer.Errorf(workerID, " Panic on user's callback: %v", string(debug.Stack()))
+			tracer.Errorf(workerID, " Panic on user's callback: %v, stack trace: \n%v", err, string(debug.Stack()))
 		}
 	}()
 
