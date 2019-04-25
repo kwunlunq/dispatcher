@@ -75,20 +75,21 @@ func (p workerPool) worker(id int) {
 }
 
 func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
-	tracer.Tracef(workerID, " Starting work [%v/%v/%v] ...", job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
+
+	tracer.Tracef(workerID, " Starting work [%v-%v-%v/%v/%v] ...", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
 
 	if p.callback != nil {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
 			p.errors <- &model.ConsumerCallbackError{Message: job, ErrStr: err.Error()}
-			tracer.Errorf(workerID, " Error doing work [%v/%v]: %v", string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
+			tracer.Errorf(workerID, " Error doing work [%v-%v-%v/%v/%v]: %v", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
 		}
 	}
 
 	if p.isResultPool {
 		p.results <- job
 	}
-	tracer.Tracef(workerID, " Finished work [%v/%v]", string(job.Key[:]), glob.TrimBytes(job.Value))
+	tracer.Tracef(workerID, " Finished work [%v-%v-%v/%v/%v].", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
 }
 
 func (p workerPool) errSender() {

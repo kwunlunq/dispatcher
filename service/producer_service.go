@@ -46,7 +46,7 @@ func (p *producerService) send(topic string, key, value []byte) {
 	select {
 	// case p.producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.ByteEncoder(key), Value: sarama.ByteEncoder(value)}:
 	case msg := <-p.producer.Successes():
-		tracer.Tracef(glob.ProjName, " Sent [%v-%v/%v/%v]\n", msg.Topic, msg.Offset, string(key[:]), glob.TrimBytes(value))
+		tracer.Tracef(glob.ProjName, " Sent [%v-%v-%v/%v/%v]\n", msg.Topic, msg.Partition, msg.Offset, string(key[:]), glob.TrimBytes(value))
 	case err := <-p.producer.Errors():
 		tracer.Errorf(glob.ProjName, " Failed to produce message: %v, len: %v", err, len(value))
 	}

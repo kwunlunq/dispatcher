@@ -35,7 +35,8 @@ func (s *clientService) Get() sarama.Client {
 }
 
 func (s *clientService) create() (client sarama.Client, err error) {
-	client, err = sarama.NewClient(glob.Config.BrokerList, glob.Config.SaramaConfig)
+	client, err = sarama.NewClient(glob.Config.BrokerList, &glob.Config.SaramaConfig)
+
 	if err != nil {
 		tracer.Errorf(glob.ProjName, "Error creating client: %v", err.Error())
 		return

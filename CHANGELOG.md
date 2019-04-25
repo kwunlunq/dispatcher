@@ -1,5 +1,12 @@
 # Changelog
 
+### Version 1.5.0 (2019-04-25)
+
+Improvements:
+- Messages will now be distributed evenly to consumers in a group.
+- New options in app.conf: `topic_partition_num` `topic_replication_num` `msg_max_bytes`
+- Expand message size to 20M
+
 ### Version 1.4.0 (2019-04-22)
 
 Improvements:

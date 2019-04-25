@@ -37,9 +37,15 @@ type config struct {
 	BrokerList []string
 	GroupID    string
 
-	SaramaConfig *sarama.Config
+	// Topic
+	TopicPartitionNum   int
+	TopicReplicationNum int
+
+	SaramaConfig sarama.Config
 	appConfig    *cfg.Config
-	ipList       string
+
+	// Message
+	msgMaxBytes int
 
 	// Producer
 	addr      *string // = flag.String("addr", ":8080", "The address to bind to")
@@ -61,7 +67,9 @@ func (c *config) loadSaramaConfigs() {
 	c.BrokerList = strings.Split(brokers, ",")
 	tracer.Infof(ProjName, " Kafka brokers: %v", strings.Join(c.BrokerList, ", "))
 
-	maxMessageBytes := 20000000
+	c.TopicPartitionNum = c.appConfig.GetValueAsInt(ProjName, "topic_partition_num", 10)
+	c.TopicReplicationNum = c.appConfig.GetValueAsInt(ProjName, "topic_replication_num", 2)
+	c.msgMaxBytes = c.appConfig.GetValueAsInt(ProjName, "msg_max_bytes", 20000000) // 20M
 
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
 	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
@@ -73,7 +81,7 @@ func (c *config) loadSaramaConfigs() {
 	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	tmpC.Producer.Return.Successes = true          // Receive success msg
-	tmpC.Producer.MaxMessageBytes = maxMessageBytes
+	tmpC.Producer.MaxMessageBytes = c.msgMaxBytes
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
@@ -89,7 +97,7 @@ func (c *config) loadSaramaConfigs() {
 
 	tmpC.ClientID = "dispatcher"
 
-	c.SaramaConfig = tmpC
+	c.SaramaConfig = *tmpC
 }
 
 func (c *config) createTlsConfiguration() (t *tls.Config) {

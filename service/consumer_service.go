@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
@@ -23,64 +24,34 @@ func (c *consumerService) SubscribeGroup(topic string, groupID string, callback 
 	if asyncNum <= 0 {
 		asyncNum = 1
 	}
-	go c.subscribe(topic, groupID, callback, asyncNum)
+	go c.subscribe(topic, groupID, callback, asyncNum, true)
 }
 
-func (c *consumerService) isExisted(t string) bool {
-	for _, topic := range c.subscribedTopics {
-		if topic == t {
-			return true
-		}
-	}
-	return false
-}
+func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) {
 
-func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
-
-	if c.isExisted(topic) {
+	if c.isTopicExisted(topic) {
 		return
 	}
+	c.addSubTopics(topic)
 
 	if groupID == "" {
 		groupID = glob.Config.GroupID
 	}
 
-	c.addTopic(topic)
-
-	// Create topic
-	TopicService.Create(topic)
-
-	tracer.Tracef(glob.ProjName, "Subscribing to %v", topic)
-
-	// Create client
-	client := ClientService.GetNew()
-
-	// Close client on panic
-	defer func() {
-		err := client.Close()
-		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error closing client: %v", err.Error())
-		}
-	}()
-
-	// Start a new consumer group
-	group, err := sarama.NewConsumerGroupFromClient(groupID, client)
-	if err != nil {
-		panic(err)
-	}
+	consumer := c.newConsumer(topic, offsetOldest, groupID)
 
 	// Close consumer group on panic
 	defer func() {
-		err := group.Close()
+		err := consumer.Close()
 		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error closing group: %v", err.Error())
+			tracer.Errorf(glob.ProjName, "Error closing consumer: %v", err.Error())
 		}
 	}()
 
 	// Track errors
 	go func() {
-		for err := range group.Errors() {
-			tracer.Errorf(glob.ProjName, "Consumer group err: %v", err.Error())
+		for err := range consumer.Errors() {
+			tracer.Errorf(glob.ProjName, "Consumer consumer err: %v", err.Error())
 			// panic(err)
 		}
 	}()
@@ -94,15 +65,42 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 
 		handler := consumerHandler{WorkerPoolService.MakeWorkerPool(callback, asyncNum, true)}
 
-		err := group.Consume(ctx, topics, handler)
+		err := consumer.Consume(ctx, topics, handler)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func (c *consumerService) addTopic(topic string) {
+func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string) sarama.ConsumerGroup {
+	TopicService.Create(topic)
+	time.Sleep(100 * time.Millisecond)
+	sconf := glob.Config.SaramaConfig
+	if offsetOldest {
+		sconf.Consumer.Offsets.Initial = sarama.OffsetOldest
+	} else {
+		sconf.Consumer.Offsets.Initial = sarama.OffsetNewest
+	}
+
+	group, err := sarama.NewConsumerGroup(glob.Config.BrokerList, groupID, &sconf)
+	if err != nil {
+		panic(err)
+	}
+
+	return group
+}
+
+func (c *consumerService) addSubTopics(topic string) {
 	c.subscribedTopics = append(c.subscribedTopics, topic)
+}
+
+func (c *consumerService) isTopicExisted(t string) bool {
+	for _, topic := range c.subscribedTopics {
+		if topic == t {
+			return true
+		}
+	}
+	return false
 }
 
 /*

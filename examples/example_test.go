@@ -46,18 +46,15 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"5 Messages", args{5}, 5, 5},
 		{"50 Messages", args{50}, 50, 50},
+		{"50 Messages", args{500}, 500, 500},
 		// {"50k Messages", args{50000}, 50000, 50000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotReceived, gotErrCount := Integration(tt.args.msgCount)
-			if gotReceived != tt.wantReceived {
-				t.Errorf("Integration() gotReceived = %v, want %v", gotReceived, tt.wantReceived)
+			if gotReceived != tt.wantReceived || gotErrCount != tt.wantErrCount {
+				t.Errorf("發送:%v 接收:%v 錯誤處理:%v", tt.args.msgCount, gotReceived, gotErrCount)
 			}
-			if gotErrCount != tt.wantErrCount {
-				t.Errorf("Integration() gotErrCount = %v, want %v", gotErrCount, tt.wantErrCount)
-			}
-			t.Logf("發送:%v 接收:%v 錯誤處理:%v", tt.args.msgCount, gotReceived, tt.wantReceived)
 		})
 	}
 	// time.Sleep(2 * time.Second)
