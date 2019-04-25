@@ -88,8 +88,8 @@ func (c *config) loadSaramaConfigs() {
 	tmpC.Consumer.Return.Errors = true
 	// tmpC.Consumer.Offsets.Initial = sarama.OffsetNewest
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest
-	tmpC.Consumer.Group.Session.Timeout = 200 * time.Second
-	// c.Net.DialTimeout = 30 * time.Second
+	// tmpC.Consumer.Group.Session.Timeout = 200 * time.Second
+	tmpC.Net.DialTimeout = 300 * time.Second
 	// c.Net.ReadTimeout = 30 * time.Second
 	// c.Net.WriteTimeout = 30 * time.Second
 
