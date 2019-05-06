@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.paradise-soft.com.tw/glob/common/settings"
+
 	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
@@ -18,30 +20,86 @@ import (
 var (
 	received int
 	errCount int
+	sent     int
 )
 
 func main() {
-	// dispatcher.Subscribe(topic, callback, 5)
-	// service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing_ERR_ERR", "disp.test.1", "disp.test.2", "disp.test.1_ERR", "disp.test.2_ERR", "kevin3_ERR", "kevin3", "dispatcher_test001")
-	// time.Sleep(time.Second)
-	testCount := 15
-	Integration(testCount)
-	fmt.Printf("Produced: %v, Received: %v, Err: %v", testCount, received, errCount)
-	// fmt.Println(service.TopicService.List())
+	testCount := settings.Config.GetValueAsInt(glob.ProjName, "test_count", 15)
 
+	start := time.Now()
+
+	Integration(testCount)
+
+	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * ErrCallback: %v\n * Cost: %vs\n\n", testCount, sent, received, errCount, int(time.Now().Sub(start).Seconds()))
 	time.Sleep(time.Hour)
 }
 
 func Integration(msgCount int) (int, int) {
 	received = 0
 	errCount = 0
+	sent = 0
 
 	Producer(glob.Config.Topic, msgCount)
 
-	Consumer(glob.Config.Topic)
+	Consumer(glob.Config.Topic, msgCount)
 
-	sleep(msgCount)
+	waitProducer(msgCount)
+	waitConsumer(msgCount)
 	return received, errCount
+}
+
+func ConsumerGroup(topic string) {
+	dispatcher.SubscribeGroup(topic, "my-group-id", callbackERR, 5)
+}
+
+func Producer(topic string, msgCount int) {
+	for i := 1; i <= msgCount; i++ {
+		// msg := fmt.Sprintf("%v.-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
+		dispatcher.Send(topic, []byte("go-dis-"+strconv.Itoa(i)), []byte("key"+strconv.Itoa(i)), errorHandler)
+		sent++
+	}
+
+	// waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
+}
+
+func Consumer(topic string, msgCount int) {
+	dispatcher.Subscribe(topic, callbackERR, 5)
+	// waitComplete(func() bool { return received >= msgCount })
+}
+
+func waitComplete(condFn func() bool) {
+	for {
+		if condFn() {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func errorHandler(key, value []byte, err error) {
+	tracer.Tracef(glob.ProjName, " Producer收到consumer回傳的error: %v/%v/%v", string(key[:]), glob.TrimBytes(value), err.Error())
+	errCount++
+}
+
+func callback(key, value []byte) error {
+	received++
+	// time.Sleep(1 * time.Second)
+	return nil
+}
+
+func callbackERR(key, value []byte) error {
+	received++
+	// time.Sleep(1 * time.Second)
+	return errors.New("測試錯誤唷~")
+}
+
+func waitProducer(msgCount int) {
+	// waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
+	waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
+}
+
+func waitConsumer(msgCount int) {
+	waitComplete(func() bool { return received >= msgCount })
 }
 
 func sleep(msgCount int) {
@@ -69,36 +127,4 @@ func MultiConsProds(msgCount int) int {
 	Producer("disp.test.2", msgCount)
 	time.Sleep(10 * time.Second)
 	return received
-}
-
-func ConsumerGroup(topic string) {
-	dispatcher.SubscribeGroup(topic, "my-group-id", callbackERR, 5)
-}
-
-func Consumer(topic string) {
-	dispatcher.Subscribe(topic, callbackERR, 5)
-}
-
-func Producer(topic string, count int) {
-	for i := 1; i <= count; i++ {
-		// msg := fmt.Sprintf("%v.-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
-		dispatcher.Send(topic, []byte("go-dis-"+strconv.Itoa(i)), []byte("key"+strconv.Itoa(i)), errorHandler)
-	}
-}
-
-func errorHandler(key, value []byte, err error) {
-	tracer.Errorf("TEST", " Producer收到consumer回傳的error: %v/%v/%v", string(key[:]), glob.TrimBytes(value), err.Error())
-	errCount++
-}
-
-func callback(key, value []byte) error {
-	time.Sleep(5 * time.Second)
-	received++
-	return nil
-}
-
-func callbackERR(key, value []byte) error {
-	received++
-	// time.Sleep(5 * time.Second)
-	return errors.New("測試錯誤唷~")
 }

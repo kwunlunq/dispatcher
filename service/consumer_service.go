@@ -75,14 +75,15 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string) sarama.ConsumerGroup {
 	TopicService.Create(topic)
 	time.Sleep(100 * time.Millisecond)
-	sconf := glob.Config.SaramaConfig
+	sconf := glob.SaramaConfig
 	if offsetOldest {
 		sconf.Consumer.Offsets.Initial = sarama.OffsetOldest
 	} else {
 		sconf.Consumer.Offsets.Initial = sarama.OffsetNewest
 	}
 
-	group, err := sarama.NewConsumerGroup(glob.Config.BrokerList, groupID, &sconf)
+	group, err := sarama.NewConsumerGroup(glob.Config.Brokers, groupID, &sconf)
+	tracer.Trace(glob.ProjName, " Consumer created.")
 	if err != nil {
 		panic(err)
 	}
@@ -101,6 +102,44 @@ func (c *consumerService) isTopicExisted(t string) bool {
 		}
 	}
 	return false
+}
+
+type consumerHandler struct {
+	pool WorkerPool
+}
+
+func (consumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+
+	tracer.Trace(glob.ProjName, " Consumer is ready.")
+
+	// Receive processed messages
+	go h.markMessage(sess)
+
+	// Process messages
+	h.claimMessage(claim)
+
+	tracer.Trace(glob.ProjName, " Finished consuming claim.")
+	return nil
+}
+
+func (h consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
+	for msg := range claim.Messages() {
+		h.pool.AddJob(msg)
+	}
+}
+
+func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
+	for result := range h.pool.Results() {
+		sess.MarkMessage(result, "")
+	}
 }
 
 /*
@@ -154,47 +193,3 @@ func (c *consumerService) subscribe(topic string, callback model.ConsumerCallbac
 	}
 }
 */
-
-type consumerHandler struct {
-	pool WorkerPool
-}
-
-func (consumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-
-	tracer.Trace(glob.ProjName, " Consumer is ready.")
-
-	// Receive processed messages
-	go h.markMessage(sess)
-
-	// Process messages
-	h.claimMessage(claim)
-
-	tracer.Trace(glob.ProjName, " Finished consuming claim.")
-	return nil
-}
-
-func (h consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
-	for msg := range claim.Messages() {
-		h.pool.AddJob(msg)
-	}
-}
-
-func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
-	for result := range h.pool.Results() {
-		// time.Sleep(time.Second)
-		// if result.Offset%2 == 0 {
-		// 	tracer.Tracef("TESTING", " Message skipped [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
-		// 	continue
-		// }
-		sess.MarkMessage(result, "")
-		// tracer.Tracef("TESTING", " Message marked [%v-%v/%v]", result.Offset, string(result.Key[:]), glob.TrimBytes(result.Value))
-	}
-}

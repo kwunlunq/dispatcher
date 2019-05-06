@@ -107,7 +107,7 @@ func (s *topicService) create(topic string) (err error) {
 		tracer.Errorf(glob.ProjName, "Error creating topic: %v", err.Error())
 		return
 	}
-	tracer.Infof(glob.ProjName, " Topic created: %v.", topic)
+	tracer.Tracef(glob.ProjName, " Topic created: %v.", topic)
 
 	// close connection to broker
 	// broker.Close()

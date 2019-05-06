@@ -82,7 +82,7 @@ func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
 			p.errors <- &model.ConsumerCallbackError{Message: job, ErrStr: err.Error()}
-			tracer.Errorf(workerID, " Error doing work [%v-%v-%v/%v/%v]: %v", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
+			tracer.Tracef(workerID, " Error doing work [%v-%v-%v/%v/%v]: %v", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
 		}
 	}
 

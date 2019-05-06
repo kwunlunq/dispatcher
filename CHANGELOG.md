@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.5.2 (2019-04-29)
+
+Improvements:
+- Extend kafkat read timeout to 300s
+
 ### Version 1.5.0 (2019-04-25)
 
 Improvements:
