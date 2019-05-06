@@ -34,6 +34,7 @@ type config struct {
 	// testing
 	TestCount int    `mapstructure:"testCount"`
 	Topic     string `mapstructure:"topic"`
+	LogLevel  string `mapstructure:"log_level"`
 }
 
 func loadConf() {
@@ -57,6 +58,7 @@ func readConfigFile() {
 			tracer.Tracef(ProjName, "Err reading conf file: %v", err.Error())
 		}
 	}
+	tracer.Infof(ProjName, "Config created with [%v]", viper.ConfigFileUsed())
 	viper.UnmarshalKey("dispatcher", &Config)
 }
 

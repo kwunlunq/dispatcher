@@ -14,5 +14,6 @@ const ProjName = "dispatcher"
 
 func init() {
 	loadConf()
+	initLogger(Config.LogLevel)
 	tracer.Infof(ProjName, " Kafka brokers: %v", Config.Brokers)
 }
