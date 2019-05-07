@@ -10,10 +10,11 @@ import (
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
-var WorkerPoolService = workerPoolService{}
+var (
+	WorkerPoolService = workerPoolService{}
+)
 
 type workerPoolService struct{}
 
@@ -29,6 +30,7 @@ type workerPool struct {
 	errors       chan *model.ConsumerCallbackError
 	callback     model.ConsumerCallback
 	isResultPool bool
+	logger       glob.GlobLogger
 }
 
 func (this workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, poolSize int, isResultPool bool) WorkerPool {
@@ -61,11 +63,11 @@ func (p workerPool) Results() <-chan *sarama.ConsumerMessage {
 func (p workerPool) worker(id int) {
 
 	workerID := fmt.Sprintf("%v-%v", glob.ProjName, id)
-	tracer.Trace(workerID, " Worker starts working ...")
+	glob.Logger.Debugf(" Worker [%v] starts working ...", workerID)
 
 	defer func() {
 		if err := recover(); err != nil {
-			tracer.Errorf(workerID, " Panic on user's callback: %v, stack trace: \n%v", err, string(debug.Stack()))
+			glob.Logger.Errorf(" (Worker[%v] Panic on user's callback: %v, stack trace: \n%v", workerID, err, string(debug.Stack()))
 		}
 	}()
 
@@ -76,27 +78,27 @@ func (p workerPool) worker(id int) {
 
 func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
 
-	tracer.Tracef(workerID, " Starting work [%v-%v-%v/%v/%v] ...", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
+	glob.Logger.Debugf(" (Worker[%v]) Starting work [%v-%v-%v/%v/%v] ...", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
 
 	if p.callback != nil {
 		err := p.callback(job.Key, job.Value)
 		if err != nil {
 			p.errors <- &model.ConsumerCallbackError{Message: job, ErrStr: err.Error()}
-			tracer.Tracef(workerID, " Error doing work [%v-%v-%v/%v/%v]: %v", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
+			glob.Logger.Debugf(" (Worker[%v]) Error doing work [%v-%v-%v/%v/%v]: %v", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
 		}
 	}
 
 	if p.isResultPool {
 		p.results <- job
 	}
-	tracer.Tracef(workerID, " Finished work [%v-%v-%v/%v/%v].", job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
+	glob.Logger.Debugf(" (Worker[%v]) Finished work [%v-%v-%v/%v/%v].", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
 }
 
 func (p workerPool) errSender() {
-	tracer.Trace(glob.ProjName, " Err worker starts working ...")
+	glob.Logger.Debug(" Err worker starts working ...")
 	for e := range p.errors {
 		bytes, _ := json.Marshal(e)
-		// tracer.Tracef(glob.ProjName, " Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
+		// glob.Logger.Debugf(" Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
 		ProducerService.send(glob.ErrTopic(e.Message.Topic), []byte(e.Message.Key), bytes)
 	}
 }

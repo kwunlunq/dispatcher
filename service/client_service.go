@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 )
 
@@ -38,9 +37,9 @@ func (s *clientService) create() (client sarama.Client, err error) {
 	client, err = sarama.NewClient(glob.Config.Brokers, &glob.SaramaConfig)
 
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error creating client: %v", err.Error())
+		glob.Logger.Errorf("Error creating client: %v", err.Error())
 		return
 	}
-	tracer.Trace(glob.ProjName, " Client created.")
+	glob.Logger.Debugf(" Client created.")
 	return
 }

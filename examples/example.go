@@ -6,10 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/glob/common/settings"
-
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
-
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
@@ -24,7 +20,8 @@ var (
 )
 
 func main() {
-	testCount := settings.Config.GetValueAsInt(glob.ProjName, "test_count", 15)
+	// testCount := settings.Config.GetValueAsInt(glob.ProjName, "test_count", 15)
+	testCount := 50
 
 	start := time.Now()
 
@@ -77,7 +74,7 @@ func waitComplete(condFn func() bool) {
 }
 
 func errorHandler(key, value []byte, err error) {
-	tracer.Tracef(glob.ProjName, " Producer收到consumer回傳的error: %v/%v/%v", string(key[:]), glob.TrimBytes(value), err.Error())
+	glob.Logger.Debugf(" Producer receive error from consumer: %v/%v/%v", string(key[:]), glob.TrimBytes(value), err.Error())
 	errCount++
 }
 

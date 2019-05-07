@@ -11,7 +11,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
 type config struct {
@@ -50,15 +49,15 @@ func readConfigFile() {
 	err := viper.ReadInConfig()
 	if err != nil {
 		// Then read app.conf if any err occurred
-		tracer.Tracef(ProjName, "Err reading conf file: %v", err.Error())
+		log.Printf("Err reading conf file: %v\n", err.Error())
 		viper.SetConfigFile("app.conf")
 		viper.SetConfigType("toml")
 		err = viper.ReadInConfig()
 		if err != nil {
-			tracer.Tracef(ProjName, "Err reading conf file: %v", err.Error())
+			log.Printf("Err reading conf file: %v\n", err.Error())
 		}
 	}
-	tracer.Infof(ProjName, "Config created with [%v]", viper.ConfigFileUsed())
+	log.Printf("Config created with [%v]\n", viper.ConfigFileUsed())
 	viper.UnmarshalKey("dispatcher", &Config)
 }
 
@@ -134,7 +133,7 @@ func createTlsConfiguration() (t *tls.Config) {
 func getWorkingDir() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		tracer.Errorf(ProjName, " Err getting working dir: %v", err)
+		log.Printf(" Err getting working dir: %v\n", err)
 	}
 	return dir
 }

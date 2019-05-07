@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 )
@@ -44,19 +43,19 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	defer func() {
 		err := consumer.Close()
 		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error closing consumer: %v", err.Error())
+			glob.Logger.Errorf("Error closing consumer: %v", err.Error())
 		}
 	}()
 
 	// Track errors
 	go func() {
 		for err := range consumer.Errors() {
-			tracer.Errorf(glob.ProjName, "Consumer consumer err: %v", err.Error())
+			glob.Logger.Errorf("Consumer consumer err: %v", err.Error())
 			// panic(err)
 		}
 	}()
 
-	tracer.Infof(glob.ProjName, " Listening on topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
+	glob.Logger.Infof(" Listening on topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
 
 	// Iterate over consumer sessions.
 	ctx := context.Background()
@@ -83,7 +82,7 @@ func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID s
 	}
 
 	group, err := sarama.NewConsumerGroup(glob.Config.Brokers, groupID, &sconf)
-	tracer.Trace(glob.ProjName, " Consumer created.")
+	glob.Logger.Debugf(" Consumer created.")
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +117,7 @@ func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
-	tracer.Trace(glob.ProjName, " Consumer is ready.")
+	glob.Logger.Debugf(" Consumer is ready.")
 
 	// Receive processed messages
 	go h.markMessage(sess)
@@ -126,7 +125,7 @@ func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sa
 	// Process messages
 	h.claimMessage(claim)
 
-	tracer.Trace(glob.ProjName, " Finished consuming claim.")
+	glob.Logger.Debugf(" Finished consuming claim.")
 	return nil
 }
 
@@ -155,7 +154,7 @@ func (c *consumerService) subscribe(topic string, callback model.ConsumerCallbac
 	defer func() {
 		err := client.Close()
 		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error closing client: %v", err.Error())
+			glob.Logger.Errorf("Error closing client: %v", err.Error())
 		}
 	}()
 
@@ -169,7 +168,7 @@ func (c *consumerService) subscribe(topic string, callback model.ConsumerCallbac
 	defer func() {
 		err := consumer.Close()
 		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error closing group: %v", err.Error())
+			glob.Logger.Errorf("Error closing group: %v", err.Error())
 		}
 	}()
 
@@ -180,11 +179,11 @@ func (c *consumerService) subscribe(topic string, callback model.ConsumerCallbac
 
 	defer func() {
 		if err := partitionConsumer.Close(); err != nil {
-			tracer.Errorf(glob.ProjName, "Err closing partitionConsumer: %v", err.Error())
+			glob.Logger.Errorf("Err closing partitionConsumer: %v", err.Error())
 		}
 	}()
 
-	tracer.Infof(glob.ProjName, " Listening on topic [%v] by [%v] workers ...\n", topic, asyncNum)
+	glob.Logger.Infof(" Listening on topic [%v] by [%v] workers ...\n", topic, asyncNum)
 
 	pool := WorkerPoolService.MakeWorkerPool(callback, asyncNum, false)
 

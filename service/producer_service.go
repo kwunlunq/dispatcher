@@ -8,7 +8,6 @@ import (
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"github.com/Shopify/sarama"
@@ -33,9 +32,9 @@ func (p *producerService) send(topic string, key, value []byte) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			tracer.Errorf("dispatcher", "Closing producer due to panic: %v", r)
+			glob.Logger.Errorf("Closing producer due to panic: %v", r)
 			if err := p.producer.Close(); err != nil {
-				tracer.Errorf("dispatcher", "Error closing producer: %v", err.Error())
+				glob.Logger.Errorf("Error closing producer: %v", err.Error())
 			}
 			p.producer = nil
 		}
@@ -46,12 +45,12 @@ func (p *producerService) send(topic string, key, value []byte) {
 	select {
 	// case p.producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: sarama.ByteEncoder(key), Value: sarama.ByteEncoder(value)}:
 	case msg := <-p.producer.Successes():
-		tracer.Tracef(glob.ProjName, " Sent [%v-%v-%v/%v/%v]\n", msg.Topic, msg.Partition, msg.Offset, string(key[:]), glob.TrimBytes(value))
+		glob.Logger.Debugf(" Message sent: [%v-%v-%v/%v/%v]\n", msg.Topic, msg.Partition, msg.Offset, string(key[:]), glob.TrimBytes(value))
 	case err := <-p.producer.Errors():
-		tracer.Errorf(glob.ProjName, " Failed to produce message: %v, len: %v", err, len(value))
+		glob.Logger.Errorf(" Failed to produce message: %v, len: %v", err, len(value))
 	}
 
-	// tracer.Tracef(glob.ProjName, " Sent: [%v/%v/%v]\n", topic, string(key[:]), glob.TrimBytes(value))
+	// glob.Logger.Debugf(" Sent: [%v/%v/%v]\n", topic, string(key[:]), glob.TrimBytes(value))
 }
 
 func (p *producerService) get() {
@@ -60,7 +59,7 @@ func (p *producerService) get() {
 		if p.producer == nil {
 			var err error
 			p.producer, err = sarama.NewAsyncProducerFromClient(ClientService.Get())
-			tracer.Trace(glob.ProjName, " Producer created.")
+			glob.Logger.Debugf(" Producer created.")
 			if err != nil {
 				panic(err)
 			}
@@ -73,15 +72,15 @@ func (p *producerService) get() {
 func makeErrCallback(producerErrHandler model.ProducerCustomerErrHandler) model.ConsumerCallback {
 	defer func() {
 		if err := recover(); err != nil {
-			tracer.Errorf(glob.ProjName, " Panic on err handler: %v", string(debug.Stack()))
+			glob.Logger.Errorf(" Panic on err handler: %v", string(debug.Stack()))
 		}
 	}()
 	return func(key, value []byte) error {
-		// tracer.Trace(glob.ProjName, "Received err from consumer")
+		// glob.Logger.Debugf("Received err from consumer")
 		var item model.ConsumerCallbackError
 		err := json.Unmarshal(value, &item)
 		if err != nil {
-			tracer.Errorf(glob.ProjName, "Error parsing callbackErr: %v", err.Error())
+			glob.Logger.Errorf("Error parsing callbackErr: %v", err.Error())
 		}
 		producerErrHandler(item.Message.Key, item.Message.Value, errors.New(item.ErrStr))
 		return nil

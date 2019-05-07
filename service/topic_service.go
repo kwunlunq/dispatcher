@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"github.com/Shopify/sarama"
@@ -33,12 +32,12 @@ func (s *topicService) Remove(topics ...string) {
 
 	broker, err := ClientService.Get().Controller()
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error retrieving broker: %v", err.Error())
+		glob.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		// return err
 	}
 	_, err = broker.Connected()
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error connecting by broker: %v", err.Error())
+		glob.Logger.Errorf("Error connecting by broker: %v", err.Error())
 		// return err
 	}
 	request := &sarama.DeleteTopicsRequest{
@@ -47,10 +46,10 @@ func (s *topicService) Remove(topics ...string) {
 	}
 	_, err = broker.DeleteTopics(request)
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error deleting topic: %v", err.Error())
+		glob.Logger.Errorf("Error deleting topic: %v", err.Error())
 	}
 
-	tracer.Tracef(glob.ProjName, "Topics %v deleted", topics)
+	glob.Logger.Debugf("Topics %v deleted", topics)
 	return
 }
 
@@ -73,14 +72,14 @@ func (s *topicService) create(topic string) (err error) {
 	var broker *sarama.Broker
 	broker, err = ClientService.Get().Controller()
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error retrieving broker: %v", err.Error())
+		glob.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		return
 	}
 
 	// check if the connection was OK
 	_, err = broker.Connected()
 	if err != nil {
-		tracer.Errorf(glob.ProjName, "Error connecting by broker: %v", err.Error())
+		glob.Logger.Errorf("Error connecting by broker: %v", err.Error())
 		return err
 	}
 
@@ -104,10 +103,10 @@ func (s *topicService) create(topic string) (err error) {
 	// handle errors if any
 	if err != nil {
 		// log.Printf("%#v", &err)
-		tracer.Errorf(glob.ProjName, "Error creating topic: %v", err.Error())
+		glob.Logger.Errorf("Error creating topic: %v", err.Error())
 		return
 	}
-	tracer.Tracef(glob.ProjName, " Topic created: %v.", topic)
+	glob.Logger.Debugf(" Topic created: %v.", topic)
 
 	// close connection to broker
 	// broker.Close()

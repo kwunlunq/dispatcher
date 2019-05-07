@@ -2,7 +2,6 @@ package glob
 
 import (
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/backend/yaitoo/tracer"
 )
 
 var (
@@ -15,5 +14,5 @@ const ProjName = "dispatcher"
 func init() {
 	loadConf()
 	initLogger(Config.LogLevel)
-	tracer.Infof(ProjName, " Kafka brokers: %v", Config.Brokers)
+	Logger.Infof(" Kafka brokers: %v", Config.Brokers)
 }
