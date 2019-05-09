@@ -1,6 +1,6 @@
 # dispatcher
 
-Dispatcher主要功能為透過kafaka做任務調度及消息推送
+利用簡單的介面, 透過kafaka調度任務及推送消息
 
 參考 [producer](./examples/producer/main.go), [consumer](./examples/consumer/main.go) 使用範例
 
