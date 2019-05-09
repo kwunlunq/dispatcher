@@ -2,48 +2,43 @@
 
 Dispatcher主要功能為透過kafaka任務調度及消息推送
 
-參考 [producer](./examples/producer), [consumer](./examples/consumer) 使用範例
+參考 [producer](./examples/producer/main.go), [consumer](./examples/consumer/main.go) 使用範例
 
-### Producer
+## Quick Start
+
+### Initialize
+在使用其他方法前, 須先完成初始化
+
+`brokers`: `[]string`, kafka機器ip清單, ex. ["1.0.0.1:000", "2.0.0.1:000"]
+
+`groupID`: `string`, 群組代號, 用以紀錄消費訊息的紀錄, 若其他機器設定相同groupID會組成群組, kafka在傳送訊息時僅送給group中的其中一人(監聽相同topic時)
 
 ```go
-func Send(topic string, key, value []byte, errHandler func(key, value []byte, err error))
+dispatcher.Init(brokers, groupID)
 ```
 
-### Consumer
+### Send
+傳送訊息
+
+`topic`: `string`, 訊息queue的名稱, 監聽時指定相同topic已取得訊息
+
+`message`: `[]byte`, 要傳送的訊息
 
 ```go
-func Subscribe(topic string, callback func(key, value []byte) error, asyncNum int)
+dispatcher.Send(topic, message)
 ```
 
-### 建置
+### Receive
+接收訊息
+
+```go
+dispatcher.Subscribe(topic, func (value []byte) error {
+	// Process message ...
+	return nil
+})
+```
+
+
+## 建置
 
 Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_64
-
-### 設定檔
-
-`app.conf`
-
-```
-[dispatcher]
-
-### 必填 ###
-# Kafka集群機器
-brokers=10.200.252.180:9092,10.200.252.181:9092,10.200.252.182:9092
-# 訂閱訊息的識別代號, 若多台設定相同時, 組成群組; 未填時使用uuid, 會每次重收全部訊息
-group_id=
-
-### 選填 ###
-# Partition數量, 影響consumer多工, 預設10
-topic_partition_num=
-# 訊息備份數量(包含leader), 預設2
-topic_replication_num=
-# 預設20M
-msg_max_bytes=
-# TLS相關, 預設不啟用
-tls_enable=
-verifySsl=
-cert_file=
-key_file=
-ca_file=
-```

@@ -1,5 +1,12 @@
 # Changelog
 
+### Version 2.0.0 (2019-05-09)
+
+Features:
+- Introduce functional options to public APIs.
+- Init() method to get necessary setting value instead of reading config file directly.
+- Utilize `go.uber.org/zap` as project's logger.
+
 ### Version 1.5.2 (2019-04-29)
 
 Improvements:
