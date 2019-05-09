@@ -20,7 +20,7 @@ dispatcher.Init(brokers, groupID)
 ### Send
 傳送訊息
 
-`topic`: `string`, 訊息queue的名稱, 監聽時指定相同topic已取得訊息
+`topic`: `string`, 訊息queue的名稱, 監聽時指定相同topic以取得訊息
 
 `message`: `[]byte`, 要傳送的訊息
 
@@ -29,7 +29,7 @@ dispatcher.Send(topic, message)
 ```
 
 ### Receive
-接收訊息
+接收訊息, 指定topic, 使用callback方法來處理訊息
 
 ```go
 dispatcher.Subscribe(topic, func (value []byte) error {
