@@ -36,18 +36,32 @@ dispatcher.Send(topic, message)
 指定topic, 使用callback方法來處理訊息
 
 ```go
-dispatcher.Subscribe(topic, func (value []byte) error {
-	// Process message ...
-	return nil
-})
+dispatcher.Subscribe(topic, callback)
 ```
 
-## 可用選項
+`callback`: `func (value []byte) error`, 處理訊息
 
-各API提供可選設定做為非必要參數, 可用的選項參見 [options.go](./options.go)
+### 可用選項
 
-例如在Subscribe時要以多執行續處理訊息, 可加上指定非同步數量選項:
+各API提供可選設定做為非必要參數, 所有可用的選項參見 [options.go](./options.go)
 
+1. Subscriber以多執行續處理訊息
 ```go
 dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(5))
 ```
+
+2. Subscriber只接收自己啟動後的新訊息, 不從未讀過的開始讀
+```go
+dispatcher.Subscribe(topic, callback, dispatcher.ConsumerOmitOldMsg())
+``` 
+
+3. Sender接收Subscriber callback回傳的錯誤
+```go
+dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
+```
+
+4. Sender確保Subscriber收到訊息是和送出時的順序完全一致, 但會降低效能
+```go
+dispatcher.Send(topic, msg, dispatcher.ProducerEnsureOrder())
+```
+
