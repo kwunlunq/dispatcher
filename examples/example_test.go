@@ -3,12 +3,11 @@ package main
 import (
 	"testing"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 )
 
 func TestIntegration(t *testing.T) {
-	// testCount := settings.Config.GetValueAsInt(glob.ProjName, "test_count", 5)
+	// testCount := settings.Config.GetValueAsInt(core.ProjName, "test_count", 5)
 	type args struct {
 		msgCount int
 	}
@@ -36,9 +35,9 @@ func TestIntegration(t *testing.T) {
 
 func BenchmarkProducer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Producer(glob.Config.Topic, 1)
+		Producer(topic, 1)
 	}
-	// service.TopicService.Remove(glob.Config.Topic)
+	// service.TopicService.Remove(core.Config.Topic)
 }
 
 func TestMultiConsProds(t *testing.T) {

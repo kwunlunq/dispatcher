@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"time"
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 )
 
@@ -15,15 +15,24 @@ type consumerService struct {
 	subscribedTopics []string
 }
 
-func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
-	c.SubscribeGroup(topic, "", callback, asyncNum)
-}
-
-func (c *consumerService) SubscribeGroup(topic string, groupID string, callback model.ConsumerCallback, asyncNum int) {
-	if asyncNum <= 0 {
-		asyncNum = 1
+func (c *consumerService) Subscribe(topic string, groupID string, callback model.ConsumerCallback, opts ...model.Option) error {
+	if !core.IsInitialized() {
+		return model.ErrNotInitialized
 	}
-	go c.subscribe(topic, groupID, callback, asyncNum, true)
+
+	dis := model.MakeDispatcher(opts)
+	asyncNum := 1
+	if dis.ConsumerAsyncNum > 1 {
+		asyncNum = dis.ConsumerAsyncNum
+	}
+	offsetOldest := true
+	if dis.ConsumerOmitOldMsg {
+		offsetOldest = false
+	}
+
+	go c.subscribe(topic, groupID, callback, asyncNum, offsetOldest)
+
+	return nil
 }
 
 func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) {
@@ -34,7 +43,7 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	c.addSubTopics(topic)
 
 	if groupID == "" {
-		groupID = glob.Config.GroupID
+		groupID = core.Config.GroupID
 	}
 
 	consumer := c.newConsumer(topic, offsetOldest, groupID)
@@ -43,19 +52,19 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	defer func() {
 		err := consumer.Close()
 		if err != nil {
-			glob.Logger.Errorf("Error closing consumer: %v", err.Error())
+			core.Logger.Errorf("Error closing consumer: %v", err.Error())
 		}
 	}()
 
 	// Track errors
 	go func() {
 		for err := range consumer.Errors() {
-			glob.Logger.Errorf("Consumer consumer err: %v", err.Error())
+			core.Logger.Errorf("Consumer consumer err: %v", err.Error())
 			// panic(err)
 		}
 	}()
 
-	glob.Logger.Infof(" Listening on topic [%v] with groupID [%v] by [%v] workers ...\n", topic, groupID, asyncNum)
+	core.Logger.Infof("Listening on topic [%v] with groupID [%v] by [%v] workers ...", topic, groupID, asyncNum)
 
 	// Iterate over consumer sessions.
 	ctx := context.Background()
@@ -74,15 +83,15 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string) sarama.ConsumerGroup {
 	TopicService.Create(topic)
 	time.Sleep(100 * time.Millisecond)
-	sconf := glob.SaramaConfig
+	sconf := core.SaramaConfig
 	if offsetOldest {
 		sconf.Consumer.Offsets.Initial = sarama.OffsetOldest
 	} else {
 		sconf.Consumer.Offsets.Initial = sarama.OffsetNewest
 	}
 
-	group, err := sarama.NewConsumerGroup(glob.Config.Brokers, groupID, &sconf)
-	glob.Logger.Debugf(" Consumer created.")
+	group, err := sarama.NewConsumerGroup(core.Config.Brokers, groupID, &sconf)
+	core.Logger.Debugf("Consumer created.")
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +126,7 @@ func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
-	glob.Logger.Debugf(" Consumer is ready.")
+	core.Logger.Debugf("Consumer is ready.")
 
 	// Receive processed messages
 	go h.markMessage(sess)
@@ -125,7 +134,7 @@ func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sa
 	// Process messages
 	h.claimMessage(claim)
 
-	glob.Logger.Debugf(" Finished consuming claim.")
+	core.Logger.Debugf("Finished consuming claim.")
 	return nil
 }
 
@@ -140,55 +149,3 @@ func (h consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
 		sess.MarkMessage(result, "")
 	}
 }
-
-/*
-func (c *consumerService) subscribe(topic string, callback model.ConsumerCallback, asyncNum int) {
-
-	// Create topic
-	TopicService.Create(topic)
-
-	// Create client
-	client := ClientService.GetNew()
-
-	// Close client on panic
-	defer func() {
-		err := client.Close()
-		if err != nil {
-			glob.Logger.Errorf("Error closing client: %v", err.Error())
-		}
-	}()
-
-	// Start a new consumer group
-	consumer, err := sarama.NewConsumerFromClient(client)
-	if err != nil {
-		panic(err)
-	}
-
-	// Close consumer group on panic
-	defer func() {
-		err := consumer.Close()
-		if err != nil {
-			glob.Logger.Errorf("Error closing group: %v", err.Error())
-		}
-	}()
-
-	partitionConsumer, err := consumer.ConsumePartition(topic, 0, glob.Config.SaramaConfig.Consumer.Offsets.Initial)
-	if err != nil {
-		panic(err)
-	}
-
-	defer func() {
-		if err := partitionConsumer.Close(); err != nil {
-			glob.Logger.Errorf("Err closing partitionConsumer: %v", err.Error())
-		}
-	}()
-
-	glob.Logger.Infof(" Listening on topic [%v] by [%v] workers ...\n", topic, asyncNum)
-
-	pool := WorkerPoolService.MakeWorkerPool(callback, asyncNum, false)
-
-	for msg := range partitionConsumer.Messages() {
-		pool.AddJob(msg)
-	}
-}
-*/

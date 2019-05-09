@@ -4,14 +4,29 @@ import (
 	"time"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+)
+
+var (
+	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	groupID = "kevin"
+	topic   = "disp.testing"
 )
 
 func main() {
-	dispatcher.Send(glob.Config.Topic, []byte("msg-key"), []byte("msg-val"), errorHandler)
-	time.Sleep(time.Second) // Wait for message send complete
+	dispatcher.Init(brokers, groupID)
+
+	msg := []byte("msg-val")
+
+	// Basic usage
+	dispatcher.Send(topic, msg)
+
+	// With option(s)
+	// dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
+
+	// Wait for message send complete
+	time.Sleep(time.Hour)
 }
 
-func errorHandler(key, value []byte, err error) {
+func errorHandler(value []byte, err error) {
 	// Handle error from consumer ...
 }

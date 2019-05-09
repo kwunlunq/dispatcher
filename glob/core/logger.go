@@ -1,31 +1,31 @@
-package glob
+package core
 
 import (
-	"fmt"
 	"os"
-
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"log"
+	"go.uber.org/zap"
 )
 
 var Logger *GlobLogger
 
-func initLogger(level string) {
+func initLogger(level string, subScopName string) {
 	lvl := zap.NewAtomicLevel()
 	loglevel := &lvl
 	err := loglevel.UnmarshalText([]byte(level))
 	if err != nil {
-		fmt.Println(err)
+		log.Println("Unknown log level: ", level)
+		loglevel.SetLevel(zap.InfoLevel)
 	}
 	encoderCfg := zap.NewProductionEncoderConfig()
 	encoderCfg.TimeKey = ""
 
 	zapLogger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(encoderCfg), zapcore.Lock(os.Stdout), loglevel), zap.AddCaller())
-	// defer zapLogger.Sync()
 
 	Logger = &GlobLogger{zapLogger.Sugar()}
-	Logger.SetName(ProjName)
-	Logger.Info("Logger created.")
+	Logger.SetName(subScopName)
+
+	Logger.Debug("Logger created.")
 }
 
 type GlobLogger struct {
@@ -34,4 +34,8 @@ type GlobLogger struct {
 
 func (l *GlobLogger) SetName(name string) {
 	Logger = &GlobLogger{l.Named(name)}
+}
+
+func (l *GlobLogger) SafeExit() {
+	l.Sync()
 }

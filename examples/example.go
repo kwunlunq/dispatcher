@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
@@ -17,10 +17,12 @@ var (
 	received int
 	errCount int
 	sent     int
+	brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	groupID  = "kevin"
+	topic    = "disp.testing"
 )
 
 func main() {
-	// testCount := settings.Config.GetValueAsInt(glob.ProjName, "test_count", 15)
 	testCount := 50
 
 	start := time.Now()
@@ -28,7 +30,8 @@ func main() {
 	Integration(testCount)
 
 	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * ErrCallback: %v\n * Cost: %vs\n\n", testCount, sent, received, errCount, int(time.Now().Sub(start).Seconds()))
-	time.Sleep(time.Hour)
+	service.TopicService.Remove("disp.testing", "disp.testing_ERR")
+	// time.Sleep(time.Hour)
 }
 
 func Integration(msgCount int) (int, int) {
@@ -36,32 +39,56 @@ func Integration(msgCount int) (int, int) {
 	errCount = 0
 	sent = 0
 
-	Producer(glob.Config.Topic, msgCount)
+	dispatcher.Init(brokers, groupID, dispatcher.InitSetLogLevel("debug"))
 
-	Consumer(glob.Config.Topic, msgCount)
+	Producer(topic, msgCount)
+
+	Consumer(topic)
 
 	waitProducer(msgCount)
 	waitConsumer(msgCount)
 	return received, errCount
 }
 
-func ConsumerGroup(topic string) {
-	dispatcher.SubscribeGroup(topic, "my-group-id", callbackERR, 5)
+func Consumer(topic string) {
+	dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
+	// waitComplete(func() bool { return received >= msgCount })
 }
 
 func Producer(topic string, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		// msg := fmt.Sprintf("%v.-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
-		dispatcher.Send(topic, []byte("go-dis-"+strconv.Itoa(i)), []byte("key"+strconv.Itoa(i)), errorHandler)
+		msg := []byte(fmt.Sprintf("msg-val-%v", i))
+		dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		sent++
 	}
 
 	// waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
 }
 
-func Consumer(topic string, msgCount int) {
-	dispatcher.Subscribe(topic, callbackERR, 5)
-	// waitComplete(func() bool { return received >= msgCount })
+func errorHandler(value []byte, err error) {
+	core.Logger.Debugf("Error from consumer: %v/%v", glob.TrimBytes(value), err.Error())
+	errCount++
+}
+
+func callback(value []byte) error {
+	received++
+	// time.Sleep(1 * time.Second)
+	return nil
+}
+
+func callbackERR(value []byte) error {
+	received++
+	// time.Sleep(1 * time.Second)
+	return errors.New("測試錯誤唷~")
+}
+
+func waitProducer(msgCount int) {
+	waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
+}
+
+func waitConsumer(msgCount int) {
+	waitComplete(func() bool { return received >= msgCount })
 }
 
 func waitComplete(condFn func() bool) {
@@ -71,32 +98,6 @@ func waitComplete(condFn func() bool) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-}
-
-func errorHandler(key, value []byte, err error) {
-	glob.Logger.Debugf(" Producer receive error from consumer: %v/%v/%v", string(key[:]), glob.TrimBytes(value), err.Error())
-	errCount++
-}
-
-func callback(key, value []byte) error {
-	received++
-	// time.Sleep(1 * time.Second)
-	return nil
-}
-
-func callbackERR(key, value []byte) error {
-	received++
-	// time.Sleep(1 * time.Second)
-	return errors.New("測試錯誤唷~")
-}
-
-func waitProducer(msgCount int) {
-	// waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
-	waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
-}
-
-func waitConsumer(msgCount int) {
-	waitComplete(func() bool { return received >= msgCount })
 }
 
 func sleep(msgCount int) {
@@ -116,8 +117,8 @@ func MultiConsProds(msgCount int) int {
 	service.TopicService.Remove("disp.test.2")
 	time.Sleep(1 * time.Second)
 
-	ConsumerGroup("disp.test.1")
-	ConsumerGroup("disp.test.2")
+	Consumer("disp.test.1")
+	Consumer("disp.test.2")
 	time.Sleep(8 * time.Second)
 
 	Producer("disp.test.1", msgCount)

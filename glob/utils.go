@@ -5,8 +5,8 @@ import (
 	"reflect"
 )
 
-// SetIfNull Set field of obj to `value` if it was null
-func SetIfNull(obj interface{}, field string, value interface{}) {
+// SetIfZero Set field of obj to `value` if it was null
+func SetIfZero(obj interface{}, field string, value interface{}) {
 	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
 		log.Println(" Err setting field: not a pointer!")
 		return

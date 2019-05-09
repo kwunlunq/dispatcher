@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
 )
@@ -32,12 +32,12 @@ func (s *topicService) Remove(topics ...string) {
 
 	broker, err := ClientService.Get().Controller()
 	if err != nil {
-		glob.Logger.Errorf("Error retrieving broker: %v", err.Error())
+		core.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		// return err
 	}
 	_, err = broker.Connected()
 	if err != nil {
-		glob.Logger.Errorf("Error connecting by broker: %v", err.Error())
+		core.Logger.Errorf("Error connecting by broker: %v", err.Error())
 		// return err
 	}
 	request := &sarama.DeleteTopicsRequest{
@@ -46,10 +46,10 @@ func (s *topicService) Remove(topics ...string) {
 	}
 	_, err = broker.DeleteTopics(request)
 	if err != nil {
-		glob.Logger.Errorf("Error deleting topic: %v", err.Error())
+		core.Logger.Errorf("Error deleting topic: %v", err.Error())
 	}
 
-	glob.Logger.Debugf("Topics %v deleted", topics)
+	core.Logger.Debugf("Topics %v deleted", topics)
 	return
 }
 
@@ -72,21 +72,21 @@ func (s *topicService) create(topic string) (err error) {
 	var broker *sarama.Broker
 	broker, err = ClientService.Get().Controller()
 	if err != nil {
-		glob.Logger.Errorf("Error retrieving broker: %v", err.Error())
+		core.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		return
 	}
 
 	// check if the connection was OK
 	_, err = broker.Connected()
 	if err != nil {
-		glob.Logger.Errorf("Error connecting by broker: %v", err.Error())
+		core.Logger.Errorf("Error connecting by broker: %v", err.Error())
 		return err
 	}
 
 	// Setup the Topic details in CreateTopicRequest struct
 	topicDetail := &sarama.TopicDetail{}
-	topicDetail.NumPartitions = int32(glob.Config.TopicPartitionNum)
-	topicDetail.ReplicationFactor = int16(glob.Config.TopicReplicationNum)
+	topicDetail.NumPartitions = int32(core.Config.TopicPartitionNum)
+	topicDetail.ReplicationFactor = int16(core.Config.TopicReplicationNum)
 	topicDetail.ConfigEntries = make(map[string]*string)
 
 	topicDetails := make(map[string]*sarama.TopicDetail)
@@ -103,10 +103,10 @@ func (s *topicService) create(topic string) (err error) {
 	// handle errors if any
 	if err != nil {
 		// log.Printf("%#v", &err)
-		glob.Logger.Errorf("Error creating topic: %v", err.Error())
+		core.Logger.Errorf("Error creating topic: %v", err.Error())
 		return
 	}
-	glob.Logger.Debugf(" Topic created: %v.", topic)
+	core.Logger.Debugf("Topic created: %v.", topic)
 
 	// close connection to broker
 	// broker.Close()

@@ -7,6 +7,7 @@ import (
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
 
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 
 	"github.com/Shopify/sarama"
@@ -30,7 +31,6 @@ type workerPool struct {
 	errors       chan *model.ConsumerCallbackError
 	callback     model.ConsumerCallback
 	isResultPool bool
-	logger       glob.GlobLogger
 }
 
 func (this workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, poolSize int, isResultPool bool) WorkerPool {
@@ -62,12 +62,12 @@ func (p workerPool) Results() <-chan *sarama.ConsumerMessage {
 
 func (p workerPool) worker(id int) {
 
-	workerID := fmt.Sprintf("%v-%v", glob.ProjName, id)
-	glob.Logger.Debugf(" Worker [%v] starts working ...", workerID)
+	workerID := fmt.Sprintf("%v-%v", core.ProjName, id)
+	core.Logger.Debugf("Worker [%v] starts working ...", workerID)
 
 	defer func() {
 		if err := recover(); err != nil {
-			glob.Logger.Errorf(" (Worker[%v] Panic on user's callback: %v, stack trace: \n%v", workerID, err, string(debug.Stack()))
+			core.Logger.Errorf("(Worker[%v] Panic on user's callback: %v, stack trace: \n%v", workerID, err, string(debug.Stack()))
 		}
 	}()
 
@@ -78,27 +78,26 @@ func (p workerPool) worker(id int) {
 
 func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
 
-	glob.Logger.Debugf(" (Worker[%v]) Starting work [%v-%v-%v/%v/%v] ...", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
+	core.Logger.Debugf("(Worker[%v]) Starting work [%v-%v-%v/%v] ...", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value))
 
 	if p.callback != nil {
-		err := p.callback(job.Key, job.Value)
+		err := p.callback(job.Value)
 		if err != nil {
 			p.errors <- &model.ConsumerCallbackError{Message: job, ErrStr: err.Error()}
-			glob.Logger.Debugf(" (Worker[%v]) Error doing work [%v-%v-%v/%v/%v]: %v", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value), err.Error())
+			core.Logger.Debugf("(Worker[%v]) Error doing work [%v-%v-%v/%v]: %v", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value), err.Error())
 		}
 	}
 
 	if p.isResultPool {
 		p.results <- job
 	}
-	glob.Logger.Debugf(" (Worker[%v]) Finished work [%v-%v-%v/%v/%v].", workerID, job.Topic, job.Partition, job.Offset, string(job.Key[:]), glob.TrimBytes(job.Value))
+	core.Logger.Debugf("(Worker[%v]) Finished work [%v-%v-%v/%v].", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value))
 }
 
 func (p workerPool) errSender() {
-	glob.Logger.Debug(" Err worker starts working ...")
+	core.Logger.Debug("Err worker starts working ...")
 	for e := range p.errors {
 		bytes, _ := json.Marshal(e)
-		// glob.Logger.Debugf(" Err worker sending: %v/%v/%v\n", glob.ErrTopic(e.Message.Topic), e.Message.Key, e)
-		ProducerService.send(glob.ErrTopic(e.Message.Topic), []byte(e.Message.Key), bytes)
+		ProducerService.send(glob.ErrTopic(e.Message.Topic), bytes, false)
 	}
 }

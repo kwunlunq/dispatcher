@@ -1,10 +1,10 @@
 package service
 
 import (
+	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
 )
 
 type clientService struct {
@@ -34,12 +34,12 @@ func (s *clientService) Get() sarama.Client {
 }
 
 func (s *clientService) create() (client sarama.Client, err error) {
-	client, err = sarama.NewClient(glob.Config.Brokers, &glob.SaramaConfig)
+	client, err = sarama.NewClient(core.Config.Brokers, &core.SaramaConfig)
 
 	if err != nil {
-		glob.Logger.Errorf("Error creating client: %v", err.Error())
+		core.Logger.Errorf("Error creating client: %v", err.Error())
 		return
 	}
-	glob.Logger.Debugf(" Client created.")
+	core.Logger.Debugf("Client created.")
 	return
 }

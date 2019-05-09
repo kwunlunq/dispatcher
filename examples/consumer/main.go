@@ -1,19 +1,33 @@
 package main
 
 import (
+	"errors"
 	"time"
 
 	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+)
+
+var (
+	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	groupID = "kevin"
+	topic   = "disp.testing"
 )
 
 func main() {
-	dispatcher.Subscribe(glob.Config.Topic, callback, 5)
-	time.Sleep(time.Hour) // Listening...
+	dispatcher.Init(brokers, groupID)
+
+	// Basic usage
+	dispatcher.Subscribe(topic, callback)
+
+	// With option(s)
+	// dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+
+	// Listening ...
+	time.Sleep(time.Hour)
 }
 
-func callback(key, value []byte) error {
+func callback(value []byte) error {
 	// Process message ...
 	// return error if there's one
-	return nil
+	return errors.New("來些測試錯誤")
 }

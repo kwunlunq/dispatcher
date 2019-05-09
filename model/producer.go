@@ -1,3 +1,3 @@
 package model
 
-type ProducerCustomerErrHandler func(key, value []byte, err error)
+type ProducerCustomerErrHandler func(value []byte, err error)
