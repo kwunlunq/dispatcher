@@ -1,4 +1,4 @@
-module gitlab.paradise-soft.com.tw/dwh/dispatcher
+module gitlab.paradise-soft.com.tw/glob/dispatcher
 
 go 1.12
 
