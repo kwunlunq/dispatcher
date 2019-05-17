@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"time"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 )
 
 var ConsumerService = &consumerService{[]string{}}

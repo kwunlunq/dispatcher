@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher"
 )
 
 var (

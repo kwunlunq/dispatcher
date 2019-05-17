@@ -6,7 +6,7 @@
 
 ## 建置
 
-`go get gitlab.paradise-soft.com.tw/dwh/dispatcher`
+`go get gitlab.paradise-soft.com.tw/glob/dispatcher`
 
 Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_64
 

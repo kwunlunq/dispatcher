@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 
 	"github.com/Shopify/sarama"
 )

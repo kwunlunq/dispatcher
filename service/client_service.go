@@ -1,7 +1,7 @@
 package service
 
 import (
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"sync"
 
 	"github.com/Shopify/sarama"

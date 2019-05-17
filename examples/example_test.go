@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
 )
 
 func TestIntegration(t *testing.T) {

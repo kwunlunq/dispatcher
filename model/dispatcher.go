@@ -1,7 +1,7 @@
 package model
 
 import (
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 )
 
 // Dispatcher defines all optional fields available to be customized.

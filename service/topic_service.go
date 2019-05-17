@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
 )

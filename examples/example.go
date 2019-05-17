@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob/core"
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/service"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 
-	"gitlab.paradise-soft.com.tw/dwh/dispatcher"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher"
 )
 
 var (
