@@ -15,3 +15,5 @@ examples/debug
 examples/debug\.test
 
 examples/examples\.exe
+
+\.idea/

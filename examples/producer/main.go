@@ -23,8 +23,8 @@ func main() {
 	// With option(s)
 	// dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 
-	// Wait for message send complete
-	time.Sleep(time.Hour)
+	// Sending ...
+	time.Sleep(time.Second)
 }
 
 func errorHandler(value []byte, err error) {

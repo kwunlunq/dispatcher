@@ -28,6 +28,6 @@ func main() {
 
 func callback(value []byte) error {
 	// Process message ...
-	// return error if there's one
+	// return error if there's any
 	return errors.New("來些測試錯誤")
 }

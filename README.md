@@ -8,7 +8,8 @@
 
 `go get gitlab.paradise-soft.com.tw/glob/dispatcher`
 
-Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_64
+Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_64, 環境變數path增加 `{{GCC安裝路徑}}\bin`
+
 
 ## Quick Start
 

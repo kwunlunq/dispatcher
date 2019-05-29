@@ -34,6 +34,7 @@ func main() {
 	// time.Sleep(time.Hour)
 }
 
+// Integration 整合測試: 傳送 + 接收
 func Integration(msgCount int) (int, int) {
 	received = 0
 	errCount = 0
@@ -109,7 +110,8 @@ func sleep(msgCount int) {
 
 }
 
-func MultiConsProds(msgCount int) int {
+// MultiPubSubs 測試: 多個 pub/sub 場景
+func MultiPubSubs(msgCount int) int {
 	received = 0
 	errCount = 0
 
