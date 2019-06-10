@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 2.1.0 (2019-06-10)
+
+Improvements:
+- Add consumer option: setGroupID
+
 ### Version 2.0.0 (2019-05-09)
 
 Features:
