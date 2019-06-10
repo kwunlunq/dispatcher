@@ -30,6 +30,11 @@ func ConsumerOmitOldMsg() model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ConsumerOmitOldMsg = true })
 }
 
+// ConsumerSetGroupID set the GroupID, overriding the ont set in Init.
+func ConsumerSetGroupID(groupID string) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.ConsumerGroupID = groupID })
+}
+
 /*
  * Init Options
  */

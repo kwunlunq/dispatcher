@@ -19,6 +19,7 @@ type Dispatcher struct {
 	// Consumer options
 	ConsumerAsyncNum   int  // num of gorutine to process msg
 	ConsumerOmitOldMsg bool // set kafka to OffsetNewest if enable
+	ConsumerGroupID    string
 }
 
 func MakeDispatcher(opts []Option) Dispatcher {

@@ -25,9 +25,11 @@ func TestIntegration(t *testing.T) {
 			gotReceived, gotErrCount := Integration(tt.args.msgCount)
 			t.Logf("發送:%v  \t接收:%v  \t錯誤處理:%v", tt.args.msgCount, gotReceived, gotErrCount)
 			if gotReceived < tt.args.msgCount || gotErrCount < tt.args.msgCount {
+				t.Log("FAIL!")
 				t.Fail()
 				// t.Errorf("發送:%v 接收:%v 錯誤處理:%v", tt.args.msgCount, gotReceived, gotErrCount)
 			}
+			t.Log("OK!")
 		})
 	}
 	service.TopicService.Remove("disp.testing", "disp.testing_ERR")
@@ -53,8 +55,8 @@ func TestMultiConsProds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := MultiConsProds(tt.args.msgCount); got != tt.want {
-				t.Errorf("MultiConsProds() = %v, want %v", got, tt.want)
+			if got := MultiPubSubs(tt.args.msgCount); got != tt.want {
+				t.Errorf("MultiPubSubs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

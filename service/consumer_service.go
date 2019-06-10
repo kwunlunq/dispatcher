@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
+
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
@@ -15,7 +17,7 @@ type consumerService struct {
 	subscribedTopics []string
 }
 
-func (c *consumerService) Subscribe(topic string, groupID string, callback model.ConsumerCallback, opts ...model.Option) error {
+func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) error {
 	if !core.IsInitialized() {
 		return model.ErrNotInitialized
 	}
@@ -25,9 +27,15 @@ func (c *consumerService) Subscribe(topic string, groupID string, callback model
 	if dis.ConsumerAsyncNum > 1 {
 		asyncNum = dis.ConsumerAsyncNum
 	}
+
 	offsetOldest := true
 	if dis.ConsumerOmitOldMsg {
 		offsetOldest = false
+	}
+
+	groupID := core.Config.GroupID
+	if strings.TrimSpace(dis.ConsumerGroupID) != "" {
+		groupID = dis.ConsumerGroupID
 	}
 
 	go c.subscribe(topic, groupID, callback, asyncNum, offsetOldest)
