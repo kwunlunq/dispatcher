@@ -80,6 +80,7 @@ func callback(value []byte) error {
 
 func callbackERR(value []byte) error {
 	received++
+	// time.Sleep(10 * time.Minute)
 	// time.Sleep(1 * time.Second)
 	return errors.New("測試錯誤唷~")
 }

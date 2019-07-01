@@ -7,8 +7,8 @@ import (
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
 )
@@ -22,7 +22,6 @@ type workerPoolService struct{}
 type WorkerPool interface {
 	AddJob(job *sarama.ConsumerMessage)
 	Results() <-chan *sarama.ConsumerMessage
-	// Errors() <-chan *model.ConsumerCallbackError
 }
 
 type workerPool struct {
@@ -55,10 +54,6 @@ func (p workerPool) AddJob(job *sarama.ConsumerMessage) {
 func (p workerPool) Results() <-chan *sarama.ConsumerMessage {
 	return p.results
 }
-
-// func (p workerPool) Errors() <-chan *model.ConsumerCallbackError {
-// 	return p.errors
-// }
 
 func (p workerPool) worker(id int) {
 

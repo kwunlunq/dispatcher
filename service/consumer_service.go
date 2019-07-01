@@ -91,6 +91,7 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string) sarama.ConsumerGroup {
 	TopicService.Create(topic)
 	time.Sleep(100 * time.Millisecond)
+
 	sconf := core.SaramaConfig
 	if offsetOldest {
 		sconf.Consumer.Offsets.Initial = sarama.OffsetOldest
@@ -134,7 +135,7 @@ func (consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 func (h consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
-	core.Logger.Debugf("Consumer is ready.")
+	core.Logger.Debugf("Consumer claim [init/high offset: %v/%v, topic: %v, partition: %v]", claim.InitialOffset(), claim.HighWaterMarkOffset(), claim.Topic(), claim.Partition())
 
 	// Receive processed messages
 	go h.markMessage(sess)
