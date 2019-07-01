@@ -3,7 +3,7 @@ package core
 import (
 	"log"
 
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/model"
 )
 
 const ProjName = "dispatcher"

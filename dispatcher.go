@@ -1,9 +1,9 @@
 package dispatcher
 
 import (
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/service"
 )
 
 // Init start dispatcher with options specified.

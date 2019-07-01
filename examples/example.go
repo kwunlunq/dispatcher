@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/service"
 
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/glob"
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
 )
