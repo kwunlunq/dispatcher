@@ -1,6 +1,6 @@
 package dispatcher
 
-import "gitlab.paradise-soft.com.tw/glob/dispatcher/v2/model"
+import "gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 
 /*
  * Producer Options

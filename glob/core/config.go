@@ -7,7 +7,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/google/uuid"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 )
 
 var (

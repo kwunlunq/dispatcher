@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/v2/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 )
 
 var ConsumerService = &consumerService{[]string{}}
