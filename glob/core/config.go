@@ -1,8 +1,6 @@
 package core
 
 import (
-	"log"
-	"os"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -96,65 +94,5 @@ func createTlsConfiguration() (t *tls.Config) {
 	}
 	// will be nil by default if nothing is provided
 	return t
-}
-*/
-
-func getWorkingDir() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Printf(" Err getting working dir: %v\n", err)
-	}
-	return dir
-}
-
-/*
-type config struct {
-	// kafka
-	Brokers             []string `mapstructure:"brokers"`
-	TopicPartitionNum   int      `mapstructure:"topic_partition_num"`
-	TopicReplicationNum int      `mapstructure:"topic_replication_num"`
-	MsgMaxBytes         int      `mapstructure:"msg_max_bytes"`
-
-	// consumer
-	GroupID string `mapstructure:"group_id"`
-
-	// tls
-	TLSEnable bool   `mapstructure:"tls_enable"`
-	VerifySsl bool   `mapstructure:"verifySsl"`
-	CertFile  string `mapstructure:"cert_file"`
-	KeyFile   string `mapstructure:"key_file"`
-	CaFile    string `mapstructure:"ca_file"`
-
-	// testing
-	TestCount int    `mapstructure:"testCount"`
-	Topic     string `mapstructure:"topic"`
-	LogLevel  string `mapstructure:"log_level"`
-}
-*/
-
-// func loadConf() {
-// 	readConfigFile()
-// 	initValue()
-// 	initSaramaConfig()
-// }
-
-/*
-func readConfigFile() {
-	// First read app.xxx, with extension supported by viper.
-	viper.AddConfigPath(".")
-	viper.SetConfigName("app")
-	err := viper.ReadInConfig()
-	if err != nil {
-		// Then read app.conf if any err occurred
-		log.Printf("Err reading conf file: %v\n", err.Error())
-		viper.SetConfigFile("app.conf")
-		viper.SetConfigType("toml")
-		err = viper.ReadInConfig()
-		if err != nil {
-			log.Printf("Err reading conf file: %v\n", err.Error())
-		}
-	}
-	log.Printf("Config created with [%v]\n", viper.ConfigFileUsed())
-	viper.UnmarshalKey("dispatcher", &Config)
 }
 */

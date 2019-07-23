@@ -26,7 +26,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	d := &Dispatcher{}
 	d.WithOptions(opts)
 	glob.SetIfZero(d, "TopicPartitionNum", 10)
-	// glob.SetIfZero(d, "TopicReplicationNum", 2)
+	glob.SetIfZero(d, "TopicReplicationNum", 0)
 	glob.SetIfZero(d, "MsgMaxBytes", 20000000)
 	return *d
 }

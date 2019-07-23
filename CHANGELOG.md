@@ -1,16 +1,19 @@
 # Changelog
 
-### Version 2.1.0 (2019-06-10)
+### Version 1.7.2 (2019-07-23)
 
-Improvements:
-- Add consumer option: setGroupID
+Bug Fixes:
+- Remove default value for topic's replication num
 
-### Version 2.0.0 (2019-05-09)
+### Version 1.7.0 (2019-06-10)
 
 Features:
 - Introduce functional options to public APIs.
 - Init() method to get necessary setting value instead of reading config file directly.
 - Utilize `go.uber.org/zap` as project's logger.
+
+Improvements:
+- Add consumer option: setGroupID
 
 ### Version 1.5.2 (2019-04-29)
 

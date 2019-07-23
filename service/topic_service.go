@@ -86,7 +86,9 @@ func (s *topicService) create(topic string) (err error) {
 	// Setup the Topic details in CreateTopicRequest struct
 	topicDetail := &sarama.TopicDetail{}
 	topicDetail.NumPartitions = int32(core.Config.TopicPartitionNum)
-	topicDetail.ReplicationFactor = int16(core.Config.TopicReplicationNum)
+	if core.Config.TopicReplicationNum > 0 {
+		topicDetail.ReplicationFactor = int16(core.Config.TopicReplicationNum)
+	}
 	topicDetail.ConfigEntries = make(map[string]*string)
 
 	topicDetails := make(map[string]*sarama.TopicDetail)
