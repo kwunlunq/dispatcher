@@ -83,7 +83,6 @@ func (p *producerService) get() {
 		}
 		p.lock.Unlock()
 	}
-	return
 }
 
 func makeErrCallback(producerErrHandler model.ProducerCustomerErrHandler) model.ConsumerCallback {
