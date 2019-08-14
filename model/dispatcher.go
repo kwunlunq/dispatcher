@@ -11,6 +11,7 @@ type Dispatcher struct {
 	TopicPartitionNum   int    `mapstructure:"topic_partition_num"   json:"topic_partition_num"`
 	TopicReplicationNum int    `mapstructure:"topic_replication_num" json:"topic_replication_num"`
 	LogLevel            string `mapstructure:"log_level"             json:"log_level"`
+	DefaultGroupID      string `mapstructure:"default_group_id" json:"default_group_id"`
 
 	// Producer options
 	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer
@@ -28,6 +29,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(d, "TopicPartitionNum", 10)
 	glob.SetIfZero(d, "TopicReplicationNum", 3)
 	glob.SetIfZero(d, "MsgMaxBytes", 20000000)
+	glob.SetIfZero(d, "DefaultGroupID", glob.GetHashMacAddrs())
 	return *d
 }
 

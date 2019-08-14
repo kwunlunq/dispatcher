@@ -58,3 +58,7 @@ func InitSetPartitionNum(partitionNum int) model.Option {
 func InitSetReplicaNum(replicaNum int) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.TopicReplicationNum = replicaNum })
 }
+
+func InitSetDefaultGroupID(defaultGroupID string) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.DefaultGroupID = defaultGroupID })
+}

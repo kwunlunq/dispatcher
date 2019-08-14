@@ -1,5 +1,11 @@
 # Changelog
 
+### Version 1.8.0 (2019-08-14)
+
+Improvements:
+- GroupID in Init is now optional, mac address will be used if not specified.
+- Send/Subscribe catch most errors. 
+
 ### Version 1.7.2 (2019-07-23)
 
 Bug Fixes:

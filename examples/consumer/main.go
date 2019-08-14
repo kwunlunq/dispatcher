@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	dispatcher.Init(brokers, groupID)
+	dispatcher.Init(brokers)
 
 	// Basic usage
 	dispatcher.Subscribe(topic, callback)

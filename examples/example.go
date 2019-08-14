@@ -40,7 +40,7 @@ func Integration(msgCount int) (int, int) {
 	errCount = 0
 	sent = 0
 
-	dispatcher.Init(brokers, groupID, dispatcher.InitSetLogLevel("debug"))
+	_ = dispatcher.Init(brokers, dispatcher.InitSetLogLevel("debug"), dispatcher.InitSetDefaultGroupID(groupID))
 
 	Producer(topic, msgCount)
 

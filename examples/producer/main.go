@@ -13,7 +13,7 @@ var (
 )
 
 func main() {
-	dispatcher.Init(brokers, groupID)
+	dispatcher.Init(brokers)
 
 	msg := []byte("msg-val")
 

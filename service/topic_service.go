@@ -20,7 +20,10 @@ func (s *topicService) Create(topic string) (err error) {
 	if !s.checkExisted(topic) {
 		s.lock.Lock()
 		if !s.checkExisted(topic) {
-			s.create(topic)
+			err = s.create(topic)
+			if err != nil {
+				return
+			}
 			s.topics = append(s.topics, topic)
 		}
 		s.lock.Unlock()

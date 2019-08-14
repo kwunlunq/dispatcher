@@ -7,8 +7,8 @@ import (
 )
 
 // Init start dispatcher with options specified.
-func Init(brokers []string, groupID string, opts ...model.Option) error {
-	return core.Init(brokers, groupID, opts...)
+func Init(brokers []string, opts ...model.Option) error {
+	return core.Init(brokers, opts...)
 }
 
 // Send message to subscribers listening on the same topic.

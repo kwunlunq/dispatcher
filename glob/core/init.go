@@ -8,15 +8,14 @@ import (
 
 const ProjName = "dispatcher"
 
-func Init(brokers []string, groupID string, opts ...model.Option) error {
+func Init(brokers []string, opts ...model.Option) error {
 	dis := model.MakeDispatcher(opts)
 
-	initConfig(brokers, groupID, dis)
+	initConfig(brokers, dis)
 	initSaramaConfig(dis)
-
 	initLogger(dis.LogLevel, ProjName)
 
-	Logger.Infof("Dispatcher started with brokers: %v, group-id: %v", Config.Brokers, Config.GroupID)
+	Logger.Infof("Dispatcher started with brokers: %v, group-id: %v", Config.Brokers, Config.DefaultGroupID)
 	Config.isInitialized = true
 	return nil
 }

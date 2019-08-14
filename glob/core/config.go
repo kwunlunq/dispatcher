@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/google/uuid"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 )
 
@@ -15,19 +14,16 @@ var (
 
 type config struct {
 	Brokers             []string
-	GroupID             string
+	DefaultGroupID      string
 	TopicPartitionNum   int
 	TopicReplicationNum int
 	isInitialized       bool
 }
 
-func initConfig(brokers []string, groupID string, dis model.Dispatcher) {
-	if groupID == "" {
-		groupID = uuid.New().String()
-	}
+func initConfig(brokers []string, dis model.Dispatcher) {
 	Config = config{
 		Brokers:             brokers,
-		GroupID:             groupID,
+		DefaultGroupID:      dis.DefaultGroupID,
 		TopicPartitionNum:   dis.TopicPartitionNum,
 		TopicReplicationNum: dis.TopicReplicationNum,
 	}
