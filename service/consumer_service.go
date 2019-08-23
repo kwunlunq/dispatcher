@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -38,8 +39,7 @@ func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallbac
 		consumerGroupID = dis.ConsumerGroupID
 	}
 
-	go c.subscribe(topic, consumerGroupID, callback, asyncNum, offsetOldest)
-	return nil
+	return c.subscribe(topic, consumerGroupID, callback, asyncNum, offsetOldest)
 }
 
 func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (err error) {
@@ -55,37 +55,22 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 		return
 	}
 
-	// Close consumer group on panic
-	defer func() {
-		err = consumer.Close()
-		if err != nil {
-			core.Logger.Errorf("Error closing consumer: %v", err.Error())
-		}
-	}()
-
-	// Track errors
-	go func() {
-		for err = range consumer.Errors() {
-			core.Logger.Errorf("Consumer consumer err: %v", err.Error())
-			// panic(err)
-		}
-	}()
-
-	core.Logger.Infof("Listening on topic [%v] with groupID [%v] by [%v] workers ...", topic, groupID, asyncNum)
-
 	// Iterate over consumer sessions.
+	core.Logger.Infof("Listening on topic [%v] with groupID [%v] by [%v] workers ...", topic, groupID, asyncNum)
 	ctx := context.Background()
-	for {
-		topics := []string{topic}
+	topics := []string{topic}
+	handler := consumerHandler{WorkerPoolService.MakeWorkerPool(callback, asyncNum, true)}
+	go consumer.Consume(ctx, topics, handler)
 
-		handler := consumerHandler{WorkerPoolService.MakeWorkerPool(callback, asyncNum, true)}
-
-		err = consumer.Consume(ctx, topics, handler)
-		if err != nil {
-			return
-			//panic(err)
-		}
+	err = <-consumer.Errors()
+	core.Logger.Errorf("Consumer consumer err: %v", err.Error())
+	closeErr := consumer.Close()
+	if closeErr != nil {
+		core.Logger.Errorf("Error closing consumer: %v", closeErr.Error())
+		err = fmt.Errorf("%v; %v", err.Error(), closeErr.Error())
 	}
+
+	return
 }
 
 func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string) (group sarama.ConsumerGroup, err error) {
