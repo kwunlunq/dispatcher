@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
@@ -17,10 +18,15 @@ func main() {
 	dispatcher.Init(brokers)
 
 	// Basic usage
-	dispatcher.Subscribe(topic, callback)
+	errSignal := dispatcher.Subscribe(topic, callback)
 
 	// With option(s)
-	// dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+	// errSignal := dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+
+	err, ok := <-errSignal
+	if ok {
+		fmt.Println(err)
+	}
 
 	// Listening ...
 	time.Sleep(time.Hour)

@@ -17,6 +17,6 @@ func Send(topic string, value []byte, opts ...model.Option) error {
 }
 
 // Subscribe receive messages of the specified topic.
-func Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) error {
+func Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (errSignal <-chan error) {
 	return service.ConsumerService.Subscribe(topic, callback, opts...)
 }

@@ -18,9 +18,14 @@ type consumerService struct {
 	subscribedTopics []string
 }
 
-func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) error {
+func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (errSignal <-chan error) {
+	tmpErrSignal := make(chan error, 1)
+
 	if !core.IsInitialized() {
-		return model.ErrNotInitialized
+		tmpErrSignal <- model.ErrNotInitialized
+		close(tmpErrSignal)
+		errSignal = tmpErrSignal
+		return
 	}
 
 	dis := model.MakeDispatcher(opts)
@@ -39,19 +44,25 @@ func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallbac
 		consumerGroupID = dis.ConsumerGroupID
 	}
 
-	return c.subscribe(topic, consumerGroupID, callback, asyncNum, offsetOldest)
+	errSignal = c.subscribe(topic, consumerGroupID, callback, asyncNum, offsetOldest)
+	return
 }
 
-func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (err error) {
+func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (errSignal chan error) {
+	errSignal = make(chan error, 1)
 
 	if c.isTopicExisted(topic) {
+		close(errSignal)
 		return
 	}
 	c.addSubTopics(topic)
 
 	var consumer sarama.ConsumerGroup
+	var err error
 	consumer, err = c.newConsumer(topic, offsetOldest, groupID)
 	if err != nil {
+		errSignal <- err
+		close(errSignal)
 		return
 	}
 
@@ -60,15 +71,50 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	ctx := context.Background()
 	topics := []string{topic}
 	handler := consumerHandler{WorkerPoolService.MakeWorkerPool(callback, asyncNum, true)}
-	go consumer.Consume(ctx, topics, handler)
 
-	err = <-consumer.Errors()
-	core.Logger.Errorf("Consumer consumer err: %v", err.Error())
-	closeErr := consumer.Close()
-	if closeErr != nil {
-		core.Logger.Errorf("Error closing consumer: %v", closeErr.Error())
-		err = fmt.Errorf("%v; %v", err.Error(), closeErr.Error())
-	}
+	go func() {
+		consumer.Consume(ctx, topics, handler)
+	}()
+
+	go func() {
+		var err error
+		var errs []error
+
+		err, _ = <-consumer.Errors() // blocked
+		if err != nil {
+			errs = append(errs, err)
+			core.Logger.Errorf("Consumer consumer err: %v", err.Error())
+		}
+
+		err = consumer.Close()
+		if err != nil {
+			errs = append(errs, err)
+			core.Logger.Errorf("Error closing consumer: %v", err.Error())
+		}
+
+		if len(errs) == 0 {
+			close(errSignal)
+			return
+		}
+
+		if len(errs) == 1 {
+			errSignal <- errs[0]
+			close(errSignal)
+			return
+		}
+
+		var errMsgs []string
+		for _, err := range errs {
+			if err != nil {
+				errMsgs = append(errMsgs, err.Error())
+			}
+		}
+
+		err = fmt.Errorf(strings.Join(errMsgs, "; "))
+		errSignal <- err
+		close(errSignal)
+
+	}()
 
 	return
 }
