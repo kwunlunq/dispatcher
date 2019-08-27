@@ -36,8 +36,13 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 
 	// Listen error from consumer
 	if dis.ProducerErrHandler != nil {
-		err = ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(dis.ProducerErrHandler))
-		return
+		go func() {
+			err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(dis.ProducerErrHandler))
+			if err != nil {
+				core.Logger.Error("Error listening on err_topic:", err.Error())
+			}
+		}()
+
 	}
 	return
 }

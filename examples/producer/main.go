@@ -13,15 +13,15 @@ var (
 )
 
 func main() {
-	dispatcher.Init(brokers)
+	_ = dispatcher.Init(brokers)
 
 	msg := []byte("msg-val")
 
 	// Basic usage
-	dispatcher.Send(topic, msg)
+	_ = dispatcher.Send(topic, msg)
 
 	// With option(s)
-	// dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
+	//_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 
 	// Sending ...
 	time.Sleep(time.Second)

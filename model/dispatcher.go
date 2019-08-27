@@ -30,6 +30,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(d, "TopicReplicationNum", 3)
 	glob.SetIfZero(d, "MsgMaxBytes", 20000000)
 	glob.SetIfZero(d, "DefaultGroupID", glob.GetHashMacAddrs())
+	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
 	return *d
 }
 

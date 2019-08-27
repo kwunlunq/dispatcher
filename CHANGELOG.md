@@ -1,10 +1,15 @@
 # Changelog
 
+### Version 1.8.1 (2019-08-23)
+
+Improvements:
+- Subscribe() will be blocked until either an error occurs or subscribing on the same topic.
+
 ### Version 1.8.0 (2019-08-14)
 
 Improvements:
 - GroupID in Init is now optional, mac address will be used if not specified.
-- Send/Subscribe catch most errors. 
+- Send/Subscribe catch most errors.
 
 ### Version 1.7.2 (2019-07-23)
 
@@ -39,7 +44,7 @@ Improvements:
 - New param in app.conf: [dispatcher] group_id, used by Sender's error handler & subscriber when no group-id is given.
 - Change setting value of Consumer.Offsets.Initial from OffsetNewest to OffsetOldest, so missing message could be consumed.
 
-### Version 1.3.0 (2019-04-18) 
+### Version 1.3.0 (2019-04-18)
 
 New Features:
 - Func Subscribe() become SubscriberGroup(), adding new func Subscribe which no groupID is needed.

@@ -2,8 +2,7 @@ package main
 
 import (
 	"errors"
-	"time"
-
+	"fmt"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
 )
 
@@ -14,20 +13,25 @@ var (
 )
 
 func main() {
-	dispatcher.Init(brokers)
+	_ = dispatcher.Init(brokers)
 
 	// Basic usage
-	dispatcher.Subscribe(topic, callback)
+	err := dispatcher.Subscribe(topic, callback) // blocked
 
 	// With option(s)
-	// dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+	// errSignal := dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+
+	if err != nil {
+		fmt.Println("Consumer err", err.Error())
+	}
 
 	// Listening ...
-	time.Sleep(time.Hour)
+	//time.Sleep(time.Hour)
 }
 
 func callback(value []byte) error {
 	// Process message ...
+	fmt.Println("receive message:", string(value))
 	// return error if there's any
 	return errors.New("來些測試錯誤")
 }
