@@ -1,9 +1,9 @@
 # Changelog
 
-### Version 1.8.1 (2019-08-23)
+### Version 1.9.0 (2019-08-27)
 
 Improvements:
-- Subscribe() will be blocked until either an error occurs or subscribing on the same topic.
+- Subscribe() will be blocked until any error occurs.
 
 ### Version 1.8.0 (2019-08-14)
 
