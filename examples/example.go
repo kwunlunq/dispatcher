@@ -44,7 +44,7 @@ func Integration(msgCount int) (int, int) {
 
 	Producer(topic, msgCount)
 
-	Consumer(topic)
+	go Consumer(topic)
 
 	waitProducer(msgCount)
 	waitConsumer(msgCount)
@@ -52,7 +52,10 @@ func Integration(msgCount int) (int, int) {
 }
 
 func Consumer(topic string) {
-	dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
+	err := dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
+	if err != nil {
+		fmt.Println("Subscribe error: ", err.Error())
+	}
 	// waitComplete(func() bool { return received >= msgCount })
 }
 
@@ -60,7 +63,7 @@ func Producer(topic string, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		// msg := fmt.Sprintf("%v.-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
 		msg := []byte(fmt.Sprintf("msg-val-%v", i))
-		dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
+		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		sent++
 	}
 

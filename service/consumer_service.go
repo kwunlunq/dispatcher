@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 
@@ -18,53 +18,42 @@ type consumerService struct {
 	subscribedTopics []string
 }
 
-func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (errSignal <-chan error) {
-	tmpErrSignal := make(chan error, 1)
-
+func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (err error) {
 	if !core.IsInitialized() {
-		tmpErrSignal <- model.ErrNotInitialized
-		close(tmpErrSignal)
-		errSignal = tmpErrSignal
+		err = model.ErrNotInitialized
 		return
 	}
 
 	dis := model.MakeDispatcher(opts)
-	asyncNum := 1
-	if dis.ConsumerAsyncNum > 1 {
-		asyncNum = dis.ConsumerAsyncNum
-	}
-
-	offsetOldest := true
-	if dis.ConsumerOmitOldMsg {
-		offsetOldest = false
-	}
-
 	consumerGroupID := core.Config.DefaultGroupID
 	if strings.TrimSpace(dis.ConsumerGroupID) != "" {
 		consumerGroupID = dis.ConsumerGroupID
 	}
 
-	errSignal = c.subscribe(topic, consumerGroupID, callback, asyncNum, offsetOldest)
+	err = c.subscribe(topic, consumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
 	return
 }
 
-func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (errSignal chan error) {
-	errSignal = make(chan error, 1)
-
+func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (err error) {
 	if c.isTopicExisted(topic) {
-		close(errSignal)
+		err = model.ErrSubscribeExistedTopic
 		return
 	}
 	c.addSubTopics(topic)
 
 	var consumer sarama.ConsumerGroup
-	var err error
 	consumer, err = c.newConsumer(topic, offsetOldest, groupID)
 	if err != nil {
-		errSignal <- err
-		close(errSignal)
 		return
 	}
+
+	// Close consumer group on panic
+	defer func() {
+		err = consumer.Close()
+		if err != nil {
+			core.Logger.Errorf("Error closing consumer: %v", err.Error())
+		}
+	}()
 
 	// Iterate over consumer sessions.
 	core.Logger.Infof("Listening on topic [%v] with groupID [%v] by [%v] workers ...", topic, groupID, asyncNum)
@@ -72,50 +61,27 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	topics := []string{topic}
 	handler := consumerHandler{WorkerPoolService.MakeWorkerPool(callback, asyncNum, true)}
 
+	errChan := make(chan error, 2)
+
+	// Consume message
 	go func() {
-		consumer.Consume(ctx, topics, handler)
+		err = consumer.Consume(ctx, topics, handler) // blocked
+		if err != nil {
+			errChan <- err
+		}
 	}()
 
+	// Listen on error
 	go func() {
-		var err error
-		var errs []error
-
-		err, _ = <-consumer.Errors() // blocked
-		if err != nil {
-			errs = append(errs, err)
-			core.Logger.Errorf("Consumer consumer err: %v", err.Error())
-		}
-
-		err = consumer.Close()
-		if err != nil {
-			errs = append(errs, err)
-			core.Logger.Errorf("Error closing consumer: %v", err.Error())
-		}
-
-		if len(errs) == 0 {
-			close(errSignal)
-			return
-		}
-
-		if len(errs) == 1 {
-			errSignal <- errs[0]
-			close(errSignal)
-			return
-		}
-
-		var errMsgs []string
-		for _, err := range errs {
-			if err != nil {
-				errMsgs = append(errMsgs, err.Error())
-			}
-		}
-
-		err = fmt.Errorf(strings.Join(errMsgs, "; "))
-		errSignal <- err
-		close(errSignal)
-
+		errChan <- <-consumer.Errors()
 	}()
 
+	// Process error
+	err, _ = <-errChan
+	closeErr := consumer.Close()
+	if closeErr != nil {
+		err = errors.Wrap(err, closeErr.Error())
+	}
 	return
 }
 

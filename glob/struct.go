@@ -17,7 +17,7 @@ func SetIfZero(obj interface{}, field string, value interface{}) {
 		return
 	}
 	if !IsZeroValue(objField.Interface()) {
-		log.Printf("%v is not zero value: %v\n", field, objField)
+		//log.Printf("%v is not zero value: %v\n", field, objField)
 		return
 	}
 	switch value.(type) {
