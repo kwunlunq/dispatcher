@@ -29,8 +29,10 @@ func main() {
 
 	Integration(testCount)
 
+	time.Sleep(time.Second)
+
 	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * ErrCallback: %v\n * Cost: %vs\n\n", testCount, sent, received, errCount, int(time.Now().Sub(start).Seconds()))
-	service.TopicService.Remove("disp.testing", "disp.testing_ERR")
+	//service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing.kevin", "disp.testing.kevin_ERR", "disp.testing222", "disp.testing222_ERR")
 	// time.Sleep(time.Hour)
 }
 

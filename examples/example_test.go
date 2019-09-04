@@ -17,7 +17,7 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"5 Messages", args{5}},
 		{"50 Messages", args{50}},
-		{"500 Messages", args{500}},
+		{"5k Messages", args{5000}},
 		// {strconv.Itoa(testCount) + " Messages", args{testCount}, testCount, testCount},
 	}
 	for _, tt := range tests {
