@@ -4,34 +4,111 @@ import (
 	"errors"
 	"fmt"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
+	"net/http"
+	_ "net/http/pprof"
+	"time"
 )
 
 var (
 	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	groupID = "kevin"
-	topic   = "disp.testing"
+	topic   = "dispatcher.example.testing"
 )
 
 func main() {
+	//consume()
+	//consumeInRealWorld()
+	consumeWithRetry()
+}
+
+func consume() {
 	_ = dispatcher.Init(brokers)
+	ctrl, _ := dispatcher.Subscribe(topic, callback)
+	<-ctrl.Errors() // blocked
+}
 
-	// Basic usage
-	err := dispatcher.Subscribe(topic, callback) // blocked
+func consumeInRealWorld() {
+	// pprof
+	go func() {
+		_ = http.ListenAndServe("0.0.0.0:8000", nil)
+	}()
 
-	// With option(s)
-	// errSignal := dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(10))
+	// Initialization
+	_ = dispatcher.Init(brokers, dispatcher.InitSetDefaultGroupID(groupID))
+
+	failCount := 0
+	failRetryLimit := 5
+	retryDuration := 3 * time.Second
+
+	for {
+		// Create subscriber
+		subscriberCtrl, err := dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(150))
+
+		// Handle subscriber creation error
+		if err != nil {
+			failCount++
+			fmt.Println("Create consumer err:", err.Error(), ", counting:", failCount)
+			if failCount >= failRetryLimit {
+				fmt.Println("Error count reach limit, leaving now")
+				break
+			}
+			time.Sleep(retryDuration)
+			continue
+		}
+
+		// Subscriber created successfully, reset failCount
+		failCount = 0
+
+		// Shutdown subscriber manually
+		go func() {
+			time.Sleep(retryDuration)
+			//fmt.Println("Stopping consumer")
+			//subscriberCtrl.Stop()
+		}()
+
+		// Handle error during subscription
+		consumeErr, _ := <-subscriberCtrl.Errors()
+		if consumeErr != nil {
+			failCount++
+			fmt.Println("Consuming err:", consumeErr.Error(), "counting:", failCount)
+			if failCount >= failRetryLimit {
+				fmt.Println("Error count reach limit, closing now")
+				break
+			}
+			time.Sleep(retryDuration)
+			continue
+		}
+
+		// Subscriber been stopped manually
+		fmt.Println("Consumer terminated without error")
+		time.Sleep(retryDuration)
+	}
+}
+
+func consumeWithRetry() {
+	// pprof
+	go func() {
+		_ = http.ListenAndServe("0.0.0.0:8000", nil)
+	}()
+
+	// Initialization
+	_ = dispatcher.Init(brokers, dispatcher.InitSetDefaultGroupID(groupID))
+
+	failRetryLimit := 5
+	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
+
+	// Subscribe with retry
+	err := dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
 
 	if err != nil {
-		fmt.Println("Consumer err", err.Error())
+		fmt.Println(err.Error())
 	}
-
-	// Listening ...
-	//time.Sleep(time.Hour)
 }
 
 func callback(value []byte) error {
-	// Process message ...
+	// Process message
 	fmt.Println("receive message:", string(value))
-	// return error if there's any
+
+	// return error if there's any, will be sent to producer's errHandler
 	return errors.New("來些測試錯誤")
 }

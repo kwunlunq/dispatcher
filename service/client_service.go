@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/pkg/errors"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"sync"
 
@@ -14,30 +15,34 @@ type clientService struct {
 
 var ClientService = &clientService{lock: &sync.Mutex{}}
 
-func (s *clientService) GetNew() sarama.Client {
-	client, _ := s.create()
-	return client
+func (s *clientService) GetNew() (client sarama.Client, err error) {
+	return s.create()
 }
 
-func (s *clientService) Get() sarama.Client {
+func (s *clientService) Get() (client sarama.Client, err error) {
 	if s.client == nil {
 		s.lock.Lock()
+		defer s.lock.Unlock()
 		if s.client == nil {
-			client, err := s.create()
-			if err == nil {
-				s.client = client
+			client, err = s.create()
+			if err != nil {
+				err = errors.Wrap(err, "err getting client")
+				core.Logger.Error(err.Error())
+				return
 			}
+			s.client = client
 		}
-		s.lock.Unlock()
 	}
-	return s.client
+	client = s.client
+	return
 }
 
 func (s *clientService) create() (client sarama.Client, err error) {
 	client, err = sarama.NewClient(core.Config.Brokers, &core.SaramaConfig)
 
 	if err != nil {
-		core.Logger.Errorf("Error creating client: %v", err.Error())
+		err = errors.Wrap(err, "err creating client")
+		core.Logger.Error(err.Error())
 		return
 	}
 	core.Logger.Debugf("Client created.")

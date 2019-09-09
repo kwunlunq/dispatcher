@@ -7,7 +7,6 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
-	// testCount := settings.Config.GetValueAsInt(core.ProjName, "test_count", 5)
 	type args struct {
 		msgCount int
 	}
@@ -17,8 +16,7 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"5 Messages", args{5}},
 		{"50 Messages", args{50}},
-		{"5k Messages", args{5000}},
-		// {strconv.Itoa(testCount) + " Messages", args{testCount}, testCount, testCount},
+		{"1k Messages", args{1000}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -27,7 +25,6 @@ func TestIntegration(t *testing.T) {
 			if gotReceived < tt.args.msgCount || gotErrCount < tt.args.msgCount {
 				t.Log("FAIL!")
 				t.Fail()
-				// t.Errorf("發送:%v 接收:%v 錯誤處理:%v", tt.args.msgCount, gotReceived, gotErrCount)
 			}
 			t.Log("OK!")
 		})
@@ -37,9 +34,8 @@ func TestIntegration(t *testing.T) {
 
 func BenchmarkProducer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Producer(topic, 1)
+		send(topic, 1)
 	}
-	// service.TopicService.Remove(core.Config.Topic)
 }
 
 func TestMultiConsProds(t *testing.T) {

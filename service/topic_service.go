@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -12,36 +13,43 @@ import (
 var TopicService = &topicService{lock: &sync.Mutex{}}
 
 type topicService struct {
-	topics []string
+	topics sync.Map
 	lock   *sync.Mutex
 }
 
 func (s *topicService) Create(topic string) (err error) {
 	if !s.checkExisted(topic) {
 		s.lock.Lock()
+		defer s.lock.Unlock()
 		if !s.checkExisted(topic) {
 			err = s.create(topic)
 			if err != nil {
+				err = errors.Wrap(err, "error creating topic")
 				return
 			}
-			s.topics = append(s.topics, topic)
+			s.topics.Store(topic, struct{}{})
 		}
-		s.lock.Unlock()
 	}
 	return nil
 }
 
-func (s *topicService) Remove(topics ...string) {
-
-	broker, err := ClientService.Get().Controller()
+func (s *topicService) Remove(topics ...string) (err error) {
+	client, err := ClientService.Get()
 	if err != nil {
-		core.Logger.Errorf("Error retrieving broker: %v", err.Error())
-		// return err
+		err = errors.Wrap(err, "remove topic error")
+		return
+	}
+	broker, err := client.Controller()
+	if err != nil {
+		err = errors.Wrap(err, "remove topic error")
+		//core.Logger.Errorf("Error retrieving broker: %v", err.Error())
+		return
 	}
 	_, err = broker.Connected()
 	if err != nil {
-		core.Logger.Errorf("Error connecting by broker: %v", err.Error())
-		// return err
+		err = errors.Wrap(err, "remove topic error")
+		//core.Logger.Errorf("Error connecting by broker: %v", err.Error())
+		return
 	}
 	request := &sarama.DeleteTopicsRequest{
 		Timeout: time.Second * 15,
@@ -49,7 +57,9 @@ func (s *topicService) Remove(topics ...string) {
 	}
 	_, err = broker.DeleteTopics(request)
 	if err != nil {
-		core.Logger.Errorf("Error deleting topic: %v", err.Error())
+		err = errors.Wrap(err, "remove topic error")
+		//core.Logger.Errorf("Error deleting topic: %v", err.Error())
+		return
 	}
 
 	core.Logger.Debugf("Topics %v deleted", topics)
@@ -57,23 +67,34 @@ func (s *topicService) Remove(topics ...string) {
 }
 
 func (s *topicService) checkExisted(topic string) (existed bool) {
-	for _, t := range s.topics {
-		if t == topic {
-			return true
-		}
-	}
-	return false
+	_, existed = s.topics.Load(topic)
+	return
 }
 
 func (s *topicService) List() (topics []string) {
-	ClientService.Get().RefreshMetadata()
-	topics, _ = ClientService.Get().Topics()
+	client, err := ClientService.Get()
+	if err != nil {
+		err = errors.Wrap(err, "list topics error")
+		core.Logger.Error("List topic error:", err.Error())
+		return
+	}
+	err = client.RefreshMetadata()
+	if err != nil {
+		err = errors.Wrap(err, "fail refresh metadata")
+		core.Logger.Error("List topic error:", err.Error())
+	}
+	topics, _ = client.Topics()
 	return
 }
 
 func (s *topicService) create(topic string) (err error) {
 	var broker *sarama.Broker
-	broker, err = ClientService.Get().Controller()
+	client, err := ClientService.GetNew()
+	if err != nil {
+		err = errors.Wrap(err, "create topic error")
+		return
+	}
+	broker, err = client.Controller()
 	if err != nil {
 		core.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		return
@@ -106,12 +127,22 @@ func (s *topicService) create(topic string) (err error) {
 	// handle errors if any
 	if err != nil {
 		// log.Printf("%#v", &err)
-		core.Logger.Errorf("Error creating topic: %v", err.Error())
+		err = errors.Wrap(err, "err creating topic")
+		core.Logger.Errorf(err.Error())
 		return
 	}
 	core.Logger.Debugf("Topic created: %v.", topic)
 
-	// close connection to broker
-	// broker.Close()
+	// close connection
+	closingErr := broker.Close()
+	if closingErr != nil {
+		core.Logger.Error("Error closing broker on topic creation", closingErr.Error())
+		return
+	}
+	closingErr = client.Close()
+	if closingErr != nil {
+		core.Logger.Error("Error closing client on topic creation", closingErr.Error())
+		return
+	}
 	return nil
 }

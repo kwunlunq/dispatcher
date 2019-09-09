@@ -12,6 +12,8 @@ import (
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 
+	wraperrors "github.com/pkg/errors"
+
 	"github.com/Shopify/sarama"
 )
 
@@ -37,9 +39,16 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 	// Listen error from consumer
 	if dis.ProducerErrHandler != nil {
 		go func() {
-			err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(dis.ProducerErrHandler))
-			if err != nil && err != model.ErrSubscribeExistedTopic {
-				core.Logger.Error("Error listening on err_topic:", err.Error())
+			consumeErrChan, _, err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(dis.ProducerErrHandler))
+			if err != nil {
+				if err != model.ErrSubscribeExistedTopic {
+					core.Logger.Error("Error creating consumer:", err.Error())
+				}
+				return
+			}
+			consumeErr, _ := <-consumeErrChan
+			if consumeErr != nil {
+				core.Logger.Error("Error consuming:", consumeErr.Error())
 			}
 		}()
 
@@ -95,17 +104,23 @@ func (p *producerService) send(topic string, value []byte, ensureOrder bool) (er
 func (p *producerService) get() (err error) {
 	if p.producer == nil {
 		p.lock.Lock()
+		defer p.lock.Unlock()
 		if p.producer == nil {
-			p.producer, err = sarama.NewAsyncProducerFromClient(ClientService.Get())
+			var client sarama.Client
+			client, err = ClientService.Get()
+			if err != nil {
+				err = wraperrors.Wrap(err, "create producer error")
+				core.Logger.Errorf("Error creating Producer: %s", err)
+				return
+			}
+			p.producer, err = sarama.NewAsyncProducerFromClient(client)
 			core.Logger.Debugf("Producer created.")
 			if err != nil {
-				//panic(err)
+				err = wraperrors.Wrap(err, "create producer error")
 				core.Logger.Errorf("Error creating Producer: %s", err)
-				p.lock.Unlock()
 				return
 			}
 		}
-		p.lock.Unlock()
 	}
 	return
 }

@@ -19,7 +19,7 @@ var (
 	sent     int
 	brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	groupID  = "kevin"
-	topic    = "disp.testing"
+	topic    = "dispatcher.example.testing"
 )
 
 func main() {
@@ -29,11 +29,9 @@ func main() {
 
 	Integration(testCount)
 
-	time.Sleep(time.Second)
-
+	time.Sleep(time.Second) // Wait for offsets to be marked
 	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * ErrCallback: %v\n * Cost: %vs\n\n", testCount, sent, received, errCount, int(time.Now().Sub(start).Seconds()))
-	//service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing.kevin", "disp.testing.kevin_ERR", "disp.testing222", "disp.testing222_ERR")
-	// time.Sleep(time.Hour)
+	//removeUsedTopic()
 }
 
 // Integration 整合測試: 傳送 + 接收
@@ -44,32 +42,47 @@ func Integration(msgCount int) (int, int) {
 
 	_ = dispatcher.Init(brokers, dispatcher.InitSetLogLevel("debug"), dispatcher.InitSetDefaultGroupID(groupID))
 
-	Producer(topic, msgCount)
+	send(topic, msgCount)
 
-	go Consumer(topic)
+	//go consume(topic)
+	go consumeWithRetry(topic)
 
 	waitProducer(msgCount)
 	waitConsumer(msgCount)
 	return received, errCount
 }
 
-func Consumer(topic string) {
-	err := dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
+func consume(topic string) {
+	subCtrl, err := dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
+	fmt.Println("Subscribe started")
 	if err != nil {
 		fmt.Println("Subscribe error: ", err.Error())
+		return
 	}
-	// waitComplete(func() bool { return received >= msgCount })
+	consumeErr, _ := <-subCtrl.Errors()
+	if consumeErr != nil {
+		fmt.Println("Subscribe error: ", consumeErr.Error())
+	}
 }
 
-func Producer(topic string, msgCount int) {
+func consumeWithRetry(topic string) {
+	failRetryLimit := 5
+	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
+
+	// Subscribe with retry
+	err := dispatcher.SubscribeWithRetry(topic, callbackERR, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func send(topic string, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
-		// msg := fmt.Sprintf("%v.-%v (%v)", i, time.Now().Format("01/02 15:04:05"), topic)
 		msg := []byte(fmt.Sprintf("msg-val-%v", i))
 		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		sent++
 	}
-
-	// waitComplete(func() bool { return sent >= msgCount && errCount >= msgCount })
 }
 
 func errorHandler(value []byte, err error) {
@@ -77,17 +90,9 @@ func errorHandler(value []byte, err error) {
 	errCount++
 }
 
-func callback(value []byte) error {
-	received++
-	// time.Sleep(1 * time.Second)
-	return nil
-}
-
 func callbackERR(value []byte) error {
 	received++
-	// time.Sleep(10 * time.Minute)
-	// time.Sleep(1 * time.Second)
-	return errors.New("測試錯誤唷~")
+	return errors.New("錯誤: 測試錯誤, 訊息: " + string(value))
 }
 
 func waitProducer(msgCount int) {
@@ -107,30 +112,28 @@ func waitComplete(condFn func() bool) {
 	}
 }
 
-func sleep(msgCount int) {
-	sleepTime := 15
-	if msgCount >= 10000 {
-		sleepTime = 40
+func removeUsedTopic() {
+	err := service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing.kevin", "disp.testing.kevin_ERR", "disp.testing222", "disp.testing222_ERR")
+	if err != nil {
+		fmt.Println(err.Error())
 	}
-	time.Sleep(time.Duration(sleepTime) * time.Second)
-
 }
 
-// MultiPubSubs 測試: 多個 pub/sub 場景
+// (暫未使用) MultiPubSubs 測試: 多個 pub/sub 場景
 func MultiPubSubs(msgCount int) int {
 	received = 0
 	errCount = 0
 
-	service.TopicService.Remove("disp.test.1")
-	service.TopicService.Remove("disp.test.2")
+	_ = service.TopicService.Remove("disp.test.1")
+	_ = service.TopicService.Remove("disp.test.2")
 	time.Sleep(1 * time.Second)
 
-	Consumer("disp.test.1")
-	Consumer("disp.test.2")
+	consume("disp.test.1")
+	consume("disp.test.2")
 	time.Sleep(8 * time.Second)
 
-	Producer("disp.test.1", msgCount)
-	Producer("disp.test.2", msgCount)
+	send("disp.test.1", msgCount)
+	send("disp.test.2", msgCount)
 	time.Sleep(10 * time.Second)
 	return received
 }
