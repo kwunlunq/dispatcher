@@ -3,14 +3,13 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"runtime/debug"
 	"sync"
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 
 	wraperrors "github.com/pkg/errors"
 
@@ -36,22 +35,9 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 		return
 	}
 
-	// Listen error from consumer
+	// Listen errors from consumer
 	if dis.ProducerErrHandler != nil {
-		go func() {
-			consumeErrChan, _, err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(dis.ProducerErrHandler))
-			if err != nil {
-				if err != model.ErrSubscribeExistedTopic {
-					core.Logger.Error("Error creating consumer:", err.Error())
-				}
-				return
-			}
-			consumeErr, _ := <-consumeErrChan
-			if consumeErr != nil {
-				core.Logger.Error("Error consuming:", consumeErr.Error())
-			}
-		}()
-
+		go p.listenErrorFromConsumer(topic, dis.ProducerErrHandler)
 	}
 	return
 }
@@ -123,6 +109,20 @@ func (p *producerService) get() (err error) {
 		}
 	}
 	return
+}
+
+func (p *producerService) listenErrorFromConsumer(topic string, errHandler model.ProducerCustomerErrHandler) {
+	consumeErrChan, _, err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(errHandler))
+	if err != nil {
+		if err != model.ErrSubscribeExistedTopic {
+			core.Logger.Error("Error creating consumer:", err.Error())
+		}
+		return
+	}
+	consumeErr, _ := <-consumeErrChan
+	if consumeErr != nil {
+		core.Logger.Error("Error consuming:", consumeErr.Error())
+	}
 }
 
 func makeErrCallback(producerErrHandler model.ProducerCustomerErrHandler) model.ConsumerCallback {
