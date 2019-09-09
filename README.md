@@ -42,7 +42,7 @@ dispatcher.Subscribe(topic, callback, ...opts) (SubscriberCtrl, error)
 dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
 ```
 - `topic`, `callback`, `opts`: 同 subscribe
-- `failRetryLimit` 重試次數上限, 超過時回傳最後一個發生的error
+- `failRetryLimit` 重試次數上限, 超過時取消監聽, 並回傳最後一個發生的error
 - `getRetryDuration` 依照失敗次數回傳每次重試需等待時間 (`func(failCount int) time.Duration`)
 
 

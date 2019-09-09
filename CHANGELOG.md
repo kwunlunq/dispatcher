@@ -5,17 +5,17 @@
 Feature:
 - 增加方法`SubscribeWithRetry` 包裝過斷線重連的subscribe方法
   - `topic`, `callback`, `opts`: 同 subscribe
-  - `failRetryLimit` 重試次數上限, 超過時回傳最後一個發生的error
+  - `failRetryLimit` 重試次數上限, 超過時取消監聽, 並回傳最後一個發生的error
   - `getRetryDuration` 依照失敗次數回傳每次重試需等待時間 (`func(failCount int) time.Duration`)
 
 Improvements:
-- `Subscribe` 回傳參數
+- `Subscribe` 回傳參數調整
   - `SubscriberCtrl` Subscriber控制物件: 包含方法 `Errors()`監聽過程的error chan, `Stop()`手動終止監聽 
   - `error` 建立subscriber錯誤, 成功建立時回傳nil
 - Kafka失敗/手動取消訂閱時: 清空workerPool, usedTopic紀錄
 
 Bug Fixes:
-- 修復幾個會造成dispatcher在kafka error後無法恢復的問題
+- 修復幾個會造成dispatcher在kafka發生異常後無法恢復的問題
 - 嘗試解決create topic失敗-broken pipe: Topic創建時使用獨立連線   
 
 ### Version 1.9.0 (2019-08-27)
