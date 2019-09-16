@@ -2,6 +2,8 @@ package service
 
 import (
 	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
+	"strconv"
 	"sync"
 	"time"
 
@@ -109,9 +111,15 @@ func (s *topicService) create(topic string) (err error) {
 
 	// Setup the Topic details in CreateTopicRequest struct
 	topicDetail := &sarama.TopicDetail{}
-	topicDetail.NumPartitions = int32(core.Config.TopicPartitionNum)
-	topicDetail.ReplicationFactor = int16(core.Config.TopicReplicationNum)
+	topicDetail.NumPartitions = int32(core.Config.KafkaConfig.TopicPartitionNum)
+	topicDetail.ReplicationFactor = int16(core.Config.KafkaConfig.TopicReplicationNum)
 	topicDetail.ConfigEntries = make(map[string]*string)
+	if core.Config.KafkaConfig.MinInsyncReplicas > 0 {
+		topicDetail.ConfigEntries["min.insync.replicas"] = glob.StrToPtr(strconv.Itoa(core.Config.KafkaConfig.MinInsyncReplicas))
+	}
+	if core.Config.KafkaConfig.MsgMaxBytes > 0 {
+		topicDetail.ConfigEntries["max.message.bytes"] = glob.StrToPtr(strconv.Itoa(core.Config.KafkaConfig.MsgMaxBytes))
+	}
 
 	topicDetails := make(map[string]*sarama.TopicDetail)
 	topicDetails[topic] = topicDetail

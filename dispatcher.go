@@ -1,7 +1,6 @@
 package dispatcher
 
 import (
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
 	"time"
@@ -9,7 +8,7 @@ import (
 
 // Init start dispatcher with options specified.
 func Init(brokers []string, opts ...model.Option) error {
-	return core.Init(brokers, opts...)
+	return service.Init(brokers, opts)
 }
 
 // Send message to subscribers listening on the same topic.

@@ -1,6 +1,9 @@
 package dispatcher
 
-import "gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+import (
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+)
 
 /*
  * Producer Options
@@ -39,26 +42,16 @@ func ConsumerSetGroupID(groupID string) model.Option {
  * Init Options
  */
 
-// InitSetMsgMaxBytes ...
-func InitSetMsgMaxBytes(msgMaxBytes int) model.Option {
-	return model.FuncOption(func(d *model.Dispatcher) { d.MsgMaxBytes = msgMaxBytes })
+// InitSetKafkaConfig set kafka related configs.
+func InitSetKafkaConfig(config KafkaConfig) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.KafkaConfig = core.KafkaConfig(config) })
+}
+
+func InitSetDefaultGroupID(defaultGroupID string) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.DefaultGroupID = defaultGroupID })
 }
 
 // InitSetLogLevel set log level of log in diapatcher, available levels are debug, info, warn, error.
 func InitSetLogLevel(logLevel string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.LogLevel = logLevel })
-}
-
-// InitSetPartitionNum set the partition num to use on creating topic.
-func InitSetPartitionNum(partitionNum int) model.Option {
-	return model.FuncOption(func(d *model.Dispatcher) { d.TopicPartitionNum = partitionNum })
-}
-
-// InitSetReplicaNum set replica num of messages sent.
-func InitSetReplicaNum(replicaNum int) model.Option {
-	return model.FuncOption(func(d *model.Dispatcher) { d.TopicReplicationNum = replicaNum })
-}
-
-func InitSetDefaultGroupID(defaultGroupID string) model.Option {
-	return model.FuncOption(func(d *model.Dispatcher) { d.DefaultGroupID = defaultGroupID })
 }

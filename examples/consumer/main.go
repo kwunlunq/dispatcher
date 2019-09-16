@@ -16,13 +16,13 @@ var (
 )
 
 func main() {
-	//consume()
+	consume()
 	//consumeInRealWorld()
-	consumeWithRetry()
+	//consumeWithRetry()
 }
 
 func consume() {
-	_ = dispatcher.Init(brokers)
+	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{Timeout: 60 * time.Second}))
 	ctrl, _ := dispatcher.Subscribe(topic, callback)
 	<-ctrl.Errors() // blocked
 }

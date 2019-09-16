@@ -23,6 +23,8 @@ func SetIfZero(obj interface{}, field string, value interface{}) {
 	switch value.(type) {
 	case int:
 		objField.SetInt(int64(value.(int)))
+	case int64:
+		objField.SetInt(value.(int64))
 	case string:
 		objField.SetString(value.(string))
 	case bool:

@@ -73,7 +73,7 @@ func (p workerPool) Context() context.Context {
 
 func (p workerPool) newWorker(id int) {
 
-	workerID := fmt.Sprintf("%v-%v", core.ProjName, id)
+	workerID := fmt.Sprintf("%v-%v", core.ProjectName, id)
 	core.Logger.Debugf("Worker [%v] starts working ...", workerID)
 
 	defer func() {

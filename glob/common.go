@@ -6,8 +6,8 @@ func ErrTopic(topic string) string {
 
 func TrimBytes(bytes []byte) string {
 	str := string(bytes)
-	if len(str) > 50 {
-		return str[:50] + " ..."
+	if len(str) > 150 {
+		return str[:150] + " ..."
 	}
 	return str
 }

@@ -1,6 +1,11 @@
 package dispatcher
 
-import "context"
+import (
+	"context"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+)
+
+type KafkaConfig core.KafkaConfig
 
 type SubscriberCtrl struct {
 	cancelFunc context.CancelFunc

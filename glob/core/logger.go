@@ -1,15 +1,15 @@
 package core
 
 import (
-	"os"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
-	"go.uber.org/zap"
+	"os"
 )
 
 var Logger *GlobLogger
 
-func initLogger(level string, subScopName string) {
+func InitLogger(level string, subScopName string) {
 	lvl := zap.NewAtomicLevel()
 	loglevel := &lvl
 	err := loglevel.UnmarshalText([]byte(level))
