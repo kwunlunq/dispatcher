@@ -1,5 +1,21 @@
 # Changelog
 
+### Version 1.10.1 (2019-09-16)
+
+Improvements:
+- 整理Init設定Kafka相關參數: `InitSetKafkaConfig`
+  - 使用方式:
+  ```go
+  dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{Timeout: 60 * time.Second}))
+  ```
+  - 包含欄位: 
+  	- `TopicPartitionNum` 每個topic的partition
+  	- `TopicReplicationNum` 同步副本數
+  	- `MinInsyncReplicas` 最小同步數量
+  	- `Timeout` 與Kafka溝通, Net/Produce/Consume中各操作的timeout時間
+  	- `MsgMaxBytes` 訊息大小上限
+- 移除參數(移到KafkaConfig): `InitSetPartitionNum`, `InitSetReplicaNum`, `InitSetDefaultGroupID`
+
 ### Version 1.10.0 (2019-09-09)
 
 Feature:
