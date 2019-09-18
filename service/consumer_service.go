@@ -62,29 +62,32 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	}
 
 	consumeErrChan = make(chan error, 2)
+	var consumeErr error
 
 	// Consume message
 	go func() {
-		consumeErr := consumer.Consume(ctx, topics, &handler) // blocked
+		consumeErr = consumer.Consume(ctx, topics, &handler) // blocked
 		if consumeErr == nil {
 			consumeErr = model.ErrConsumeStopWithoutError
 		}
 		consumeErr = errors.Wrapf(consumeErr, "error establishing consumer of topic [%v]", topic)
-		consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
+		cancelFunc() // stop workers, go to ctx.Done()
+		//consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
 	}()
 
 	go func() {
 		select {
 		// Error occurs on consuming
-		case consumeErr := <-consumer.Errors():
+		case consumeErr = <-consumer.Errors():
 			if consumeErr == nil {
 				consumeErr = model.ErrConsumeStopWithoutError
 			}
 			consumeErr = errors.Wrapf(consumeErr, "error listening on topic [%v]", topic)
+			cancelFunc() // stop workers
 			consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
 		// Stopped by user
 		case <-ctx.Done():
-			consumerService.close(topic, consumer, consumeErrChan, nil, &handler, cancelFunc)
+			consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
 		}
 	}()
 
@@ -122,7 +125,7 @@ func (consumerService *consumerService) close(topic string, consumer sarama.Cons
 	} else {
 		core.Logger.Infof("Consumer on topic [%v] was closed manually.", topic)
 	}
-	cancelFunc() // stop workers
+	//cancelFunc() // stop workers
 	close(consumeErrChan)
 	if consumer != nil {
 		err := consumer.Close()
