@@ -48,27 +48,27 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC := sarama.NewConfig()
 	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 
-	timeout := d.KafkaConfig.Timeout
+	//timeout := d.KafkaConfig.Timeout
 
 	// Net
-	tmpC.Net.DialTimeout = timeout
+	//tmpC.Net.DialTimeout = timeout
 
 	// Producer
 	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	tmpC.Producer.Return.Successes = true          // Receive success msg
 	tmpC.Producer.MaxMessageBytes = d.KafkaConfig.MsgMaxBytes
-	tmpC.Producer.Timeout = timeout
+	//tmpC.Producer.Timeout = timeout
 	//tmpC.Producer.Compression
 	//tmpC.Producer.CompressionLevel
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest // OffsetNewest,Oldest
-	tmpC.Consumer.Group.Session.Timeout = timeout
-	tmpC.Net.DialTimeout = timeout
-	tmpC.Net.ReadTimeout = timeout
-	tmpC.Net.WriteTimeout = timeout
+	//tmpC.Consumer.Group.Session.Timeout = timeout
+	//tmpC.Net.DialTimeout = timeout
+	//tmpC.Net.ReadTimeout = timeout
+	//tmpC.Net.WriteTimeout = timeout
 
 	// TLS
 	// tlsConfig := createTlsConfiguration()

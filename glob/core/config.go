@@ -25,8 +25,8 @@ type KafkaConfig struct {
 	TopicPartitionNum   int
 	TopicReplicationNum int
 	MinInsyncReplicas   int
-	Timeout             time.Duration
 	MsgMaxBytes         int
+	Timeout             time.Duration
 }
 
 func InitConfig(brokers []string, c CoreConfig) {

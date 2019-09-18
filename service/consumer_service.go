@@ -66,24 +66,25 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	// Consume message
 	go func() {
 		consumeErr := consumer.Consume(ctx, topics, &handler) // blocked
-		if consumeErr != nil {
-			consumeErr = errors.Wrap(consumeErr, "error establish consumer")
-			consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler)
+		if consumeErr == nil {
+			consumeErr = model.ErrConsumeStopWithoutError
 		}
+		consumeErr = errors.Wrapf(consumeErr, "error establishing consumer of topic [%v]", topic)
+		consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
 	}()
 
 	go func() {
 		select {
-		// Listen on error
-		case consumeErr, ok := <-consumer.Errors():
-			if ok && consumeErr != nil {
-				consumeErr = errors.Wrap(consumeErr, "error listening")
-				cancelFunc()
-				consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler)
+		// Error occurs on consuming
+		case consumeErr := <-consumer.Errors():
+			if consumeErr == nil {
+				consumeErr = model.ErrConsumeStopWithoutError
 			}
-		// Listen on context cancelled
+			consumeErr = errors.Wrapf(consumeErr, "error listening on topic [%v]", topic)
+			consumerService.close(topic, consumer, consumeErrChan, consumeErr, &handler, cancelFunc)
+		// Stopped by user
 		case <-ctx.Done():
-			consumerService.close(topic, consumer, consumeErrChan, nil, &handler)
+			consumerService.close(topic, consumer, consumeErrChan, nil, &handler, cancelFunc)
 		}
 	}()
 
@@ -114,11 +115,14 @@ func (consumerService *consumerService) new(topic string, offsetOldest bool, gro
 	return
 }
 
-func (consumerService *consumerService) close(topic string, consumer sarama.ConsumerGroup, consumeErrChan chan error, err error, handler *consumerHandler) {
+func (consumerService *consumerService) close(topic string, consumer sarama.ConsumerGroup, consumeErrChan chan error, err error, handler *consumerHandler, cancelFunc context.CancelFunc) {
 	if err != nil {
 		core.Logger.Error(err.Error())
 		consumeErrChan <- err
+	} else {
+		core.Logger.Infof("Consumer on topic [%v] was closed manually.", topic)
 	}
+	cancelFunc() // stop workers
 	close(consumeErrChan)
 	if consumer != nil {
 		err := consumer.Close()
@@ -128,6 +132,7 @@ func (consumerService *consumerService) close(topic string, consumer sarama.Cons
 		}
 	}
 	consumerService.removeSubTopic(topic)
+	// Close started chan manually in case of error occurs on establishing consumer and the subscribe() func had returned.
 	handler.started()
 }
 
@@ -211,9 +216,9 @@ func (consumerService *consumerService) SubscribeWithRetry(topic string, callbac
 		// Handle subscriber creation error
 		if err != nil {
 			failCount++
-			core.Logger.Debug("Create consumer err:", err.Error(), ", counting:", failCount)
+			core.Logger.Error("Create consumer err:", err.Error(), ", counting:", failCount)
 			if failCount >= failRetryLimit {
-				core.Logger.Debug("Error count reach limit, leaving now")
+				core.Logger.Error("Error count reach limit, leaving now")
 				break
 			}
 			time.Sleep(getRetryDuration(failCount))
@@ -227,9 +232,9 @@ func (consumerService *consumerService) SubscribeWithRetry(topic string, callbac
 		consumeErr, _ := <-consumeErrChan
 		if consumeErr != nil {
 			failCount++
-			core.Logger.Debug("Consuming err:", consumeErr.Error(), "counting:", failCount)
+			core.Logger.Error("Consuming err:", consumeErr.Error(), "counting:", failCount)
 			if failCount >= failRetryLimit {
-				core.Logger.Debug("Error count reach limit, closing now")
+				core.Logger.Error("Error count reach limit, closing now")
 				break
 			}
 			time.Sleep(getRetryDuration(failCount))
@@ -237,7 +242,7 @@ func (consumerService *consumerService) SubscribeWithRetry(topic string, callbac
 		}
 
 		// Subscriber been stopped manually
-		core.Logger.Debug("Consumer terminated without error")
+		core.Logger.Error("Consumer terminated without error")
 		time.Sleep(getRetryDuration(failCount))
 	}
 

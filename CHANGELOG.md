@@ -1,5 +1,12 @@
 # Changelog
 
+### Version 1.10.2 (2019-09-18)
+
+Bug Fixes:
+- 暫時移除timeout相關設定的套用
+- 處理幾個可能導致客戶端卡住的問題
+- 增加Consume Error: ErrConsumeStopWithoutError
+
 ### Version 1.10.1 (2019-09-16)
 
 Improvements:

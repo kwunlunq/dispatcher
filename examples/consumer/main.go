@@ -13,6 +13,7 @@ var (
 	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	groupID = "kevin"
 	topic   = "dispatcher.example.testing"
+	start   = time.Now()
 )
 
 func main() {
@@ -22,8 +23,9 @@ func main() {
 }
 
 func consume() {
-	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{Timeout: 60 * time.Second}))
+	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{Timeout: 25 * time.Second}))
 	ctrl, _ := dispatcher.Subscribe(topic, callback)
+	fmt.Println("start after ", time.Now().Sub(start).Seconds(), "s")
 	<-ctrl.Errors() // blocked
 }
 
