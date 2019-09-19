@@ -72,7 +72,7 @@ func consumeInRealWorld() {
 		consumeErr, _ := <-subscriberCtrl.Errors()
 		if consumeErr != nil {
 			failCount++
-			fmt.Println("Consuming err:", consumeErr.Error(), "counting:", failCount)
+			fmt.Println("Consuming err:", consumeErr.Error(), ", counting:", failCount)
 			if failCount >= failRetryLimit {
 				fmt.Println("Error count reach limit, closing now")
 				break
