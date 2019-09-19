@@ -23,7 +23,7 @@ func main() {
 }
 
 func consume() {
-	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{Timeout: 25 * time.Second}))
+	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{TopicReplicationNum: 5, MinInsyncReplicas: 1}))
 	ctrl, _ := dispatcher.Subscribe(topic, callback)
 	fmt.Println("start after ", time.Now().Sub(start).Seconds(), "s")
 	<-ctrl.Errors() // blocked

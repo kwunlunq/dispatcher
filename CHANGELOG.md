@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.10.3 (2019-09-19)
+
+Bug Fixes:
+- 處理consumer異常結束可能發生close on closed channel的問題
+
 ### Version 1.10.2 (2019-09-18)
 
 Bug Fixes:

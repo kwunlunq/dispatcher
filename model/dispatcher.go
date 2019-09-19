@@ -4,7 +4,6 @@ import (
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
-	"time"
 )
 
 // Dispatcher defines all optional fields available to be customized.
@@ -34,7 +33,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(&d.KafkaConfig, "TopicPartitionNum", 10)
 	glob.SetIfZero(&d.KafkaConfig, "TopicReplicationNum", 3)
 	glob.SetIfZero(&d.KafkaConfig, "MinInsyncReplicas", 3)
-	glob.SetIfZero(&d.KafkaConfig, "Timeout", int64(60*time.Second))
+	//glob.SetIfZero(&d.KafkaConfig, "Timeout", int64(60*time.Second))
 	return *d
 }
 func (d Dispatcher) ToCoreConfig() core.CoreConfig {
