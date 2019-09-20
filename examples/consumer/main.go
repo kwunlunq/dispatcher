@@ -17,9 +17,9 @@ var (
 )
 
 func main() {
-	consume()
+	//consume()
 	//consumeInRealWorld()
-	//consumeWithRetry()
+	consumeWithRetry()
 }
 
 func consume() {

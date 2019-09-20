@@ -18,11 +18,11 @@ func Send(topic string, value []byte, opts ...model.Option) error {
 
 // Subscribe receive messages of the specified topic.
 func Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (ctrl *SubscriberCtrl, err error) {
-	consumeErrChan, cancelFunc, err := service.ConsumerService.Subscribe(topic, callback, opts...)
+	c, err := service.ConsumerService.Subscribe(topic, callback, opts...)
 	if err != nil {
 		return
 	}
-	ctrl = &SubscriberCtrl{errors: consumeErrChan, cancelFunc: cancelFunc}
+	ctrl = &SubscriberCtrl{errors: c.ConsumeErrChan, cancelFunc: c.CancelFunc}
 	return
 }
 
