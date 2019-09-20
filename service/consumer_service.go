@@ -43,7 +43,7 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	}
 	consumerService.addSubTopic(topic)
 
-	groupID = glob.AppendSuffix(groupID, topic, "-")
+	groupID = glob.AppendSuffix(groupID, topic, ":")
 
 	// Create Consumer
 	ctx := context.Background()
