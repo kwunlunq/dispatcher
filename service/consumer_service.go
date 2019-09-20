@@ -100,7 +100,7 @@ func (consumerService *consumerService) new(topic string, offsetOldest bool, gro
 		startedChan: started,
 	}
 
-	consumeErrChan := make(chan error, 2)
+	consumeErrChan := make(chan error, 5)
 
 	dispatcherConsumer = &consumer{
 		topic:          topic,
@@ -135,27 +135,6 @@ func (consumerService *consumerService) newSaramaConsumer(topic string, offsetOl
 	return
 }
 
-func (consumerService *consumerService) close(topic string, consumer sarama.ConsumerGroup, consumeErrChan chan error, err error, handler *consumerHandler, cancelFunc context.CancelFunc) {
-	if err != nil {
-		core.Logger.Error(err.Error())
-		consumeErrChan <- err
-	} else {
-		core.Logger.Infof("Consumer on topic [%v] was closed manually.", topic)
-	}
-	//cancelFunc() // stop workers
-	close(consumeErrChan)
-	if consumer != nil {
-		err := consumer.Close()
-		if err != nil {
-			err = errors.Wrap(err, "error closing consumer")
-			core.Logger.Error(err.Error())
-		}
-	}
-	consumerService.removeSubTopic(topic)
-	// Close started chan manually in case of error occurs on establishing consumer and the subscribe() func had returned.
-	handler.started()
-}
-
 func (consumerService *consumerService) addSubTopic(topic string) {
 	consumerService.subscribedTopics.Store(topic, struct{}{})
 }
@@ -180,22 +159,26 @@ type consumer struct {
 
 func (c *consumer) close(err error) {
 	c.closeOnce.Do(func() {
+		if err == nil {
+			core.Logger.Infof("Consumer on topic [%v] was closed without error.", c.topic)
+		}
+		c.cancelFunc() // stop workers
+		if c.saramaConsumer != nil {
+			closeErr := c.saramaConsumer.Close()
+			if closeErr != nil {
+				closeErr = errors.Wrapf(closeErr, "error closing consumer of topic [%v]", c.topic)
+				if err != nil {
+					err = errors.Wrap(closeErr, "error closing consumer")
+				} else {
+					err = closeErr
+				}
+			}
+		}
 		if err != nil {
 			core.Logger.Error(err.Error())
 			c.consumeErrChan <- err
-		} else {
-			core.Logger.Infof("Consumer on topic [%v] was closed without error.", c.topic)
 		}
-		// Stop workers
-		c.cancelFunc()
 		close(c.consumeErrChan)
-		if c.saramaConsumer != nil {
-			err := c.saramaConsumer.Close()
-			if err != nil {
-				err = errors.Wrap(err, "error closing consumer")
-				core.Logger.Error(err.Error())
-			}
-		}
 		ConsumerService.removeSubTopic(c.topic)
 		// Close started chan manually in case of error occurs on establishing consumer and the subscribe() func had returned.
 		c.handler.started()
@@ -217,6 +200,7 @@ func (h *consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
+// 執行次數 = 分到的partition數量
 func (h *consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
 	core.Logger.Debugf("Consumer claim [init/high offset: %v/%v, topic: %v, partition: %v]", claim.InitialOffset(), claim.HighWaterMarkOffset(), claim.Topic(), claim.Partition())
