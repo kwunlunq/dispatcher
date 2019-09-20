@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.10.6 (2019-09-20)
+
+Improvements:
+- 為訂閱不同topic的consumer指定不同的groupID
+
 ### Version 1.10.3 (2019-09-19)
 
 Bug Fixes:
