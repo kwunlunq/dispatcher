@@ -12,6 +12,7 @@ type Dispatcher struct {
 	KafkaConfig    core.KafkaConfig
 	LogLevel       string
 	DefaultGroupID string
+	UserKey        string
 
 	// Producer options
 	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer

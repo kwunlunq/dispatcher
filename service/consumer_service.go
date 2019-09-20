@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,8 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 		return
 	}
 	consumerService.addSubTopic(topic)
+
+	groupID = glob.AppendSuffix(groupID, topic, "-")
 
 	// Create consumer
 	var consumer *consumer

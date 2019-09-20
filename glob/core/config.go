@@ -17,6 +17,7 @@ type CoreConfig struct {
 	DefaultGroupID string
 	Brokers        []string
 	IsInitialized  bool
+	UserKey        string
 }
 
 type KafkaConfig struct {
@@ -31,6 +32,7 @@ func InitConfig(brokers []string, c CoreConfig) {
 	Config = c
 	Config.Brokers = brokers
 	Config.IsInitialized = true
+	//Config.UserKey = userKey
 }
 
 func InitSaramaConfig(tmpC *sarama.Config) {
