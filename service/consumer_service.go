@@ -169,7 +169,7 @@ func (c *Consumer) close(err error) {
 		if c.saramaConsumer != nil {
 			closeErr := c.saramaConsumer.Close()
 			if closeErr != nil {
-				closeErr = errors.Wrapf(closeErr, "error closing consumer of topic [%v]", c.topic)
+				closeErr = errors.Wrapf(closeErr, "error closing consumer of topic [%v]", c.Topic)
 				if err != nil {
 					err = errors.Wrap(closeErr, "error closing consumer")
 				} else {
