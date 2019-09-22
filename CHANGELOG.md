@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.10.7 (2019-09-23)
+
+Bug Fixes:
+- 修復失敗後重建topic時可能出現非預期partition數量問題
+
 ### Version 1.10.6 (2019-09-20)
 
 Improvements:

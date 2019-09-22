@@ -64,6 +64,10 @@ func (s *topicService) Remove(topics ...string) (err error) {
 		return
 	}
 
+	for _, topic := range topics {
+		s.topics.Delete(topic)
+	}
+
 	core.Logger.Debugf("Topics %v deleted", topics)
 	return
 }
@@ -87,6 +91,10 @@ func (s *topicService) List() (topics []string) {
 	}
 	topics, _ = client.Topics()
 	return
+}
+
+func (s *topicService) RemoveMapEntry(topic string) {
+	s.topics.Delete(topic)
 }
 
 func (s *topicService) create(topic string) (err error) {

@@ -43,6 +43,12 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	}
 	consumerService.addSubTopic(topic)
 
+	// Create topic
+	err = TopicService.Create(topic)
+	if err != nil {
+		return
+	}
+
 	groupID = glob.AppendSuffix(groupID, topic, ":")
 
 	// Create Consumer
@@ -148,6 +154,7 @@ func (consumerService *consumerService) isTopicExisted(topic string) (existed bo
 
 func (consumerService *consumerService) removeSubTopic(topic string) {
 	consumerService.subscribedTopics.Delete(topic)
+	TopicService.RemoveMapEntry(topic)
 }
 
 type Consumer struct {
@@ -160,6 +167,7 @@ type Consumer struct {
 	saramaConsumer sarama.ConsumerGroup
 }
 
+// close 關閉並清除subscriber的相關資源
 func (c *Consumer) close(err error) {
 	c.closeOnce.Do(func() {
 		if err == nil {
