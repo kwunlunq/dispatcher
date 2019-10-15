@@ -1,6 +1,11 @@
 # Changelog
 
-### Version 1.10.9(2019-09-23)
+### Version 1.10.10 (2019-10-15)
+
+Bug Fixes:
+- 修復consumer不停中斷重連的問題 (caused by consumer group rebalancing)
+
+### Version 1.10.9 (2019-09-23)
 
 Bug Fixes:
 - 修復失敗後重建topic時可能出現非預期partition數量問題

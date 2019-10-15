@@ -63,12 +63,16 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	// Consume message
 	var consumeErr error
 	go func() {
-		consumeErr = consumer.saramaConsumer.Consume(context.Background(), []string{consumer.Topic}, &consumer.handler) // blocked
-		if consumeErr == nil {
-			consumeErr = model.ErrConsumeStopWithoutError
+		for {
+			consumeErr = consumer.saramaConsumer.Consume(context.Background(), []string{consumer.Topic}, &consumer.handler) // blocked
+			if consumeErr != nil {
+				consumeErr = errors.Wrapf(consumeErr, "error establishing Consumer of Topic [%v]", topic)
+				consumer.close(consumeErr)
+				break
+			}
+			// Reconnect when rebalance occurs
+			core.Logger.Debugf("Rebalancing consumer group of topic: [%v], groupID: [%v]", topic, groupID)
 		}
-		consumeErr = errors.Wrapf(consumeErr, "error establishing Consumer of Topic [%v]", topic)
-		consumer.close(consumeErr)
 	}()
 
 	go func() {
