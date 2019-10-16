@@ -3,14 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"time"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
-
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
+	"time"
 )
 
 var (
@@ -40,7 +34,8 @@ func Integration(msgCount int) (int, int) {
 	errCount = 0
 	sent = 0
 
-	_ = dispatcher.Init(brokers, dispatcher.InitSetLogLevel("debug"), dispatcher.InitSetDefaultGroupID(groupID))
+	//_ = dispatcher.Init(brokers, dispatcher.InitSetLogLevel("debug"), dispatcher.InitSetDefaultGroupID(groupID))
+	_ = dispatcher.Init(brokers, dispatcher.InitSetDefaultGroupID(groupID))
 
 	send(topic, msgCount)
 
@@ -51,6 +46,8 @@ func Integration(msgCount int) (int, int) {
 	waitConsumer(msgCount)
 	return received, errCount
 }
+
+// TODO: 測試consumer group rebalance場景
 
 func consume(topic string) {
 	subCtrl, err := dispatcher.Subscribe(topic, callbackERR, dispatcher.ConsumerSetAsyncNum(5))
@@ -86,7 +83,7 @@ func send(topic string, msgCount int) {
 }
 
 func errorHandler(value []byte, err error) {
-	core.Logger.Debugf("Error from consumer: %v/%v", glob.TrimBytes(value), err.Error())
+	fmt.Printf("Error from consumer: %v/%v\n", string(value), err.Error())
 	errCount++
 }
 
@@ -113,10 +110,10 @@ func waitComplete(condFn func() bool) {
 }
 
 func removeUsedTopic() {
-	err := service.TopicService.Remove("disp.testing", "disp.testing_ERR", "disp.testing.kevin", "disp.testing.kevin_ERR", "disp.testing222", "disp.testing222_ERR")
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	//err := service.TopicService.Remove("dispatcher.example.testing", "dispatcher.example.testing_ERR", "dispatcher.example.testing.kevin", "dispatcher.example.testing.kevin_ERR", "dispatcher.example.testing222", "dispatcher.example.testing222_ERR")
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//}
 }
 
 // (暫未使用) MultiPubSubs 測試: 多個 pub/sub 場景
@@ -124,16 +121,16 @@ func MultiPubSubs(msgCount int) int {
 	received = 0
 	errCount = 0
 
-	_ = service.TopicService.Remove("disp.test.1")
-	_ = service.TopicService.Remove("disp.test.2")
+	//_ = service.TopicService.Remove("dispatcher.example.testing.1")
+	//_ = service.TopicService.Remove("dispatcher.example.testing.2")
 	time.Sleep(1 * time.Second)
 
-	consume("disp.test.1")
-	consume("disp.test.2")
+	consume("dispatcher.example.testing.1")
+	consume("dispatcher.example.testing.2")
 	time.Sleep(8 * time.Second)
 
-	send("disp.test.1", msgCount)
-	send("disp.test.2", msgCount)
+	send("dispatcher.example.testing.1", msgCount)
+	send("dispatcher.example.testing.2", msgCount)
 	time.Sleep(10 * time.Second)
 	return received
 }

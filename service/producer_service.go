@@ -114,7 +114,7 @@ func (p *producerService) get() (err error) {
 func (p *producerService) listenErrorFromConsumer(topic string, errHandler model.ProducerCustomerErrHandler) {
 	c, err := ConsumerService.Subscribe(glob.ErrTopic(topic), makeErrCallback(errHandler))
 	if err != nil {
-		if err != model.ErrSubscribeExistedTopic {
+		if wraperrors.Cause(err) != model.ErrSubscribeOnSubscribedTopic {
 			core.Logger.Error("Error creating consumer:", err.Error())
 		}
 		return

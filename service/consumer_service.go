@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"strings"
@@ -27,38 +28,27 @@ func (consumerService *consumerService) Subscribe(topic string, callback model.C
 	}
 
 	dis := model.MakeDispatcher(opts)
-	consumerGroupID := core.Config.DefaultGroupID
-	if strings.TrimSpace(dis.ConsumerGroupID) != "" {
-		consumerGroupID = dis.ConsumerGroupID
-	}
-
-	c, err = consumerService.subscribe(topic, consumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
+	c, err = consumerService.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
 	return
 }
 
 func (consumerService *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
-	if consumerService.isTopicExisted(topic) {
-		err = model.ErrSubscribeExistedTopic
-		return
-	}
-	consumerService.addSubTopic(topic)
 
 	// Create topic
-	err = TopicService.Create(topic)
+	err = consumerService.createTopic(topic)
 	if err != nil {
 		return
 	}
 
-	groupID = glob.AppendSuffix(groupID, topic, ":")
-
 	// Create Consumer
 	ctx := context.Background()
-	consumer, err = consumerService.new(topic, offsetOldest, groupID, callback, asyncNum, ctx)
+	consumer, err = consumerService.getNew(topic, offsetOldest, groupID, callback, asyncNum, ctx)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
 		consumerService.removeSubTopic(topic)
 		return
 	}
+	groupID = consumer.GroupID
 
 	// Consume message
 	var consumeErr error
@@ -75,6 +65,7 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 		}
 	}()
 
+	// Collect cancel / error signal
 	go func() {
 		select {
 		// Error occurs on consuming
@@ -95,7 +86,11 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	return
 }
 
-func (consumerService *consumerService) new(topic string, offsetOldest bool, groupID string, callback model.ConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
+func (consumerService *consumerService) getNew(topic string, offsetOldest bool, groupID string, callback model.ConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
+	// Create consumer group for each topic
+	groupID = consumerService.getValidGroupID(topic, groupID)
+
+	// Create sarama consumer
 	var group sarama.ConsumerGroup
 	group, err = consumerService.newSaramaConsumer(topic, offsetOldest, groupID)
 	if err != nil {
@@ -103,24 +98,8 @@ func (consumerService *consumerService) new(topic string, offsetOldest bool, gro
 		return
 	}
 
-	var cancelFunc context.CancelFunc
-	ctx, cancelFunc = context.WithCancel(ctx)
-
-	started := make(chan struct{}, 1)
-	handler := consumerHandler{
-		pool:        WorkerPoolService.MakeWorkerPool(callback, asyncNum, true, ctx),
-		startedChan: started,
-	}
-
-	consumeErrChan := make(chan error, 5)
-
-	dispatcherConsumer = &Consumer{
-		Topic:          topic,
-		ConsumeErrChan: consumeErrChan,
-		handler:        handler,
-		CancelFunc:     cancelFunc,
-		saramaConsumer: group,
-	}
+	// Wrap into dispatcher consumer
+	dispatcherConsumer = newConsumer(group, topic, groupID, ctx, asyncNum, callback)
 	return
 }
 
@@ -147,11 +126,28 @@ func (consumerService *consumerService) newSaramaConsumer(topic string, offsetOl
 	return
 }
 
-func (consumerService *consumerService) addSubTopic(topic string) {
+// createTopic 檢查topic已訂閱, 創建topic
+func (consumerService *consumerService) createTopic(topic string) (err error) {
+	// Check topic already subscribed
+	if consumerService.isTopicAlreadySubscribed(topic) {
+		err = model.ErrSubscribeOnSubscribedTopic
+		return
+	}
+
+	// Create topic
+	err = TopicService.Create(topic)
+	if err != nil {
+		return
+	}
+	consumerService.addToSubscribingTopics(topic)
+	return
+}
+
+func (consumerService *consumerService) addToSubscribingTopics(topic string) {
 	consumerService.subscribedTopics.Store(topic, struct{}{})
 }
 
-func (consumerService *consumerService) isTopicExisted(topic string) (existed bool) {
+func (consumerService *consumerService) isTopicAlreadySubscribed(topic string) (existed bool) {
 	_, existed = consumerService.subscribedTopics.Load(topic)
 	return
 }
@@ -161,8 +157,17 @@ func (consumerService *consumerService) removeSubTopic(topic string) {
 	TopicService.RemoveMapEntry(topic)
 }
 
+func (consumerService *consumerService) getValidGroupID(topic, groupID string) string {
+	if strings.TrimSpace(groupID) == "" {
+		groupID = core.Config.DefaultGroupID
+	}
+	groupID = glob.AppendSuffix(groupID, topic, ":")
+	return groupID
+}
+
 type Consumer struct {
 	Topic          string
+	GroupID        string
 	ConsumeErrChan chan error
 	CancelFunc     context.CancelFunc
 
@@ -171,13 +176,36 @@ type Consumer struct {
 	saramaConsumer sarama.ConsumerGroup
 }
 
-// close 關閉並清除subscriber的相關資源
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, ctx context.Context, asyncNum int, callback model.ConsumerCallback) *Consumer {
+
+	var cancelFunc context.CancelFunc
+	ctx, cancelFunc = context.WithCancel(ctx)
+
+	started := make(chan struct{}, 1)
+	handler := consumerHandler{
+		pool:        WorkerPoolService.MakeWorkerPool(callback, asyncNum, true, ctx),
+		startedChan: started,
+	}
+
+	consumeErrChan := make(chan error, 5)
+
+	return &Consumer{
+		Topic:          topic,
+		GroupID:        groupID,
+		ConsumeErrChan: consumeErrChan,
+		handler:        handler,
+		CancelFunc:     cancelFunc,
+		saramaConsumer: group,
+	}
+}
+
+// close 關閉subscriber, 清除相關資源
 func (c *Consumer) close(err error) {
 	c.closeOnce.Do(func() {
-		if err == nil {
-			core.Logger.Infof("Consumer on Topic [%v] was closed without error.", c.Topic)
-		}
-		c.CancelFunc() // stop workers
+		// Stop workers
+		c.CancelFunc()
+
+		// Stop consumer
 		if c.saramaConsumer != nil {
 			closeErr := c.saramaConsumer.Close()
 			if closeErr != nil {
@@ -189,12 +217,23 @@ func (c *Consumer) close(err error) {
 				}
 			}
 		}
+
+		// Log error
+		logMessage := fmt.Sprintf("Closing subscriber of topic [%v], groupID [%v]", c.Topic, c.GroupID)
 		if err != nil {
-			core.Logger.Error(err.Error())
+			logMessage += ": " + err.Error()
+			core.Logger.Error(logMessage)
 			c.ConsumeErrChan <- err
+		} else {
+			core.Logger.Error(logMessage)
 		}
+
+		// Close err chan
 		close(c.ConsumeErrChan)
+
+		// Clear other data
 		ConsumerService.removeSubTopic(c.Topic)
+
 		// Close started chan manually in case of error occurs on establishing consumer and the subscribe() func had returned.
 		c.handler.started()
 	})
@@ -268,6 +307,11 @@ func (consumerService *consumerService) SubscribeWithRetry(topic string, callbac
 
 		// Handle subscriber creation error
 		if err != nil {
+			// Stop create subscriber if the topic had been subscribed
+			if errors.Cause(err) == model.ErrSubscribeOnSubscribedTopic {
+				core.Logger.Infof("Stop create consumer, since the topic [%v] has been subscribed", topic)
+				break
+			}
 			failCount++
 			core.Logger.Error("Create consumer err:", err.Error(), ", counting:", failCount)
 			if failCount >= failRetryLimit {
@@ -285,7 +329,7 @@ func (consumerService *consumerService) SubscribeWithRetry(topic string, callbac
 		consumeErr, _ := <-c.ConsumeErrChan
 		if consumeErr != nil {
 			failCount++
-			core.Logger.Error("Consuming err:", consumeErr.Error(), ", counting:", failCount)
+			core.Logger.Error("Consuming err: ", consumeErr.Error(), ", counting:", failCount)
 			if failCount >= failRetryLimit {
 				core.Logger.Error("Error count reach limit, closing now")
 				break

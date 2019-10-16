@@ -45,48 +45,8 @@ func IsInitialized() bool {
 	return Config.IsInitialized
 }
 
-//func initConfig(brokers []string, dis model.Dispatcher) {
-//	Config = config{
-//		Brokers:             brokers,
-//		DefaultGroupID:      dis.DefaultGroupID,
-//		TopicPartitionNum:   dis.TopicPartitionNum,
-//		TopicReplicationNum: dis.TopicReplicationNum,
-//	}
-//}
-
-//func initSaramaConfig(dis model.Dispatcher) {
-//
-//	tmpC := sarama.NewConfig()
-//	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
-//
-//	// Producer
-//	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-//	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-//	tmpC.Producer.Return.Successes = true          // Receive success msg
-//	tmpC.Producer.MaxMessageBytes = dis.MsgMaxBytes
-//
-//	// Consumer
-//	tmpC.Consumer.Return.Errors = true
-//	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest // OffsetNewest,Oldest
-//	tmpC.Net.ReadTimeout = 300 * time.Second            // Other timeout: Consumer.Group.Session.Timeout, Net.DialTimeout, Net.WriteTimeout, Net.WriteTimeout
-//
-//	// TLS
-//	// tlsConfig := createTlsConfiguration()
-//	// if tlsConfig != nil {
-//	// 	tmpC.Net.TLS.Config = tlsConfig
-//	// 	tmpC.Net.TLS.Enable = true
-//	// }
-//
-//	tmpC.ClientID = "dispatcher"
-//
-//	// Switch on sarama log if needed
-//	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
-//	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-//
-//	SaramaConfig = *tmpC
-//}
-
-/* TODO: 待整理
+// TODO: TLS連線
+/*
 func createTlsConfiguration() (t *tls.Config) {
 	tlsEnable := Config.TLSEnable
 	if !tlsEnable {
