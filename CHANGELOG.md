@@ -4,6 +4,8 @@
 
 Bug Fixes:
 - 修復consumer不停中斷重連的問題 (caused by consumer group rebalancing)
+- Producer/Consumer default timeout: 10s > 30s, try fix issue: 
+```error while consuming Hao_DEV_Linux_SDK/2: kafka server: Request exceeded the user-specified time limit in the request```
 
 ### Version 1.10.9 (2019-09-23)
 

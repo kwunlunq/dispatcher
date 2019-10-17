@@ -4,6 +4,7 @@ import (
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"time"
 )
 
 // Dispatcher defines all optional fields available to be customized.
@@ -51,24 +52,24 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	//timeout := d.KafkaConfig.Timeout
 
 	// Net
-	//tmpC.Net.DialTimeout = timeout
+	//tmpC.Net.DialTimeout = timeout  // default 30s
 
 	// Producer
 	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	tmpC.Producer.Return.Successes = true          // Receive success msg
 	tmpC.Producer.MaxMessageBytes = d.KafkaConfig.MsgMaxBytes
-	//tmpC.Producer.Timeout = timeout
+	tmpC.Producer.Timeout = 30 * time.Second // Default 10s
 	//tmpC.Producer.Compression
 	//tmpC.Producer.CompressionLevel
 
 	// Consumer
 	tmpC.Consumer.Return.Errors = true
-	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest // OffsetNewest,Oldest
-	//tmpC.Consumer.Group.Session.Timeout = timeout
-	//tmpC.Net.DialTimeout = timeout
-	//tmpC.Net.ReadTimeout = timeout
-	//tmpC.Net.WriteTimeout = timeout
+	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest    // OffsetNewest,Oldest
+	tmpC.Consumer.Group.Session.Timeout = 30 * time.Second // Default 10s
+	//tmpC.Net.DialTimeout = timeout  // default 30s
+	//tmpC.Net.ReadTimeout = timeout  // default 30s
+	//tmpC.Net.WriteTimeout = timeout // default 30s
 
 	// TLS
 	// tlsConfig := createTlsConfiguration()
