@@ -18,6 +18,7 @@ type Dispatcher struct {
 	// Producer options
 	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer
 	ProducerEnsureOrder bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
+	ProducerMessageKey  string
 
 	// Consumer options
 	ConsumerAsyncNum   int  // num of gorutine to process msg

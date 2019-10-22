@@ -24,6 +24,9 @@ dispatcher.Send(topic, message, ...opts) error
 ```
 - `topic`: `string`, 訊息queue的名稱, 監聽時指定相同topic以取得訊息
 - `message`: `[]byte`, 要傳送的訊息
+- `opts`:
+  - `ProducerEnsureOrder`: 確保接收時訊息有序, dispatcher會將message的key設為固定值(topic), 讓訊息進到同個partition, 未指定時隨機分配partition
+  - `ProducerSetMessageKey`: 使用者自訂每個訊息的key值, 採用順序: Key > EnsureOrder 
 
 ### 接收訊息
 
@@ -36,6 +39,10 @@ dispatcher.Subscribe(topic, callback, ...opts) (SubscriberCtrl, error)
 - `callback`: `func (value []byte) error`, 處理訊息
 - `SubscriberCtrl`: 包含 `Errors()`接收監聽過程error, `Stops()`手動終止監聽等控制功能
 - `error`: 建立subscribe error
+- `opts`:
+  - `ConsumerSetGroupID`: 指定consumer group id, 本次consume將覆蓋InitDefaultGroupID
+  - `ConsumerSetAsyncNum`: 指定同時處理訊息的goroutine數量
+  - `ConsumerOmitOldMsg`: 是否忽略舊訊息, 注意: *僅在該group初次監聽topic有效*
 
 #### 斷線重試接收
 ```go

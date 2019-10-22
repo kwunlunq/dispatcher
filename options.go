@@ -19,6 +19,11 @@ func ProducerEnsureOrder() model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ProducerEnsureOrder = true })
 }
 
+// ProducerSetMessageKey set the key for each message
+func ProducerSetMessageKey(key string) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.ProducerMessageKey = key })
+}
+
 /*
  * Consumer Options
  */

@@ -115,7 +115,7 @@ func (p workerPool) errSender() {
 	core.Logger.Debug("Err newWorker starts working ...")
 	for e := range p.errors {
 		bytes, _ := json.Marshal(e)
-		err := ProducerService.send(glob.ErrTopic(e.Message.Topic), bytes, false)
+		err := ProducerService.send(glob.ErrTopic(e.Message.Topic), bytes, "", false)
 		if err != nil {
 			core.Logger.Error("Err sending back error:", err.Error())
 		}

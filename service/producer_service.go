@@ -30,7 +30,7 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 
 	// Send message
 	dis := model.MakeDispatcher(opts)
-	err = p.send(topic, value, dis.ProducerEnsureOrder)
+	err = p.send(topic, value, dis.ProducerMessageKey, dis.ProducerEnsureOrder)
 	if err != nil {
 		return
 	}
@@ -42,7 +42,7 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 	return
 }
 
-func (p *producerService) send(topic string, value []byte, ensureOrder bool) (err error) {
+func (p *producerService) send(topic string, value []byte, msgKey string, ensureOrder bool) (err error) {
 
 	// Create topic
 	err = TopicService.Create(topic)
@@ -71,6 +71,9 @@ func (p *producerService) send(topic string, value []byte, ensureOrder bool) (er
 	message := &sarama.ProducerMessage{Topic: topic, Value: sarama.ByteEncoder(value)}
 	if ensureOrder {
 		message.Key = sarama.StringEncoder(topic)
+	}
+	if msgKey != "" {
+		message.Key = sarama.StringEncoder(msgKey)
 	}
 	p.producer.Input() <- message
 
