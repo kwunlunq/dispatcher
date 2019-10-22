@@ -27,16 +27,14 @@ type Dispatcher struct {
 }
 
 func MakeDispatcher(opts []Option) Dispatcher {
-	d := &Dispatcher{
-		DefaultGroupID:   glob.GetHashMacAddrs(),
-		ConsumerAsyncNum: 1,
-	}
+	d := &Dispatcher{}
 	d.WithOptions(opts)
 	glob.SetIfZero(&d.KafkaConfig, "MsgMaxBytes", 20000000)
 	glob.SetIfZero(&d.KafkaConfig, "TopicPartitionNum", 10)
 	glob.SetIfZero(&d.KafkaConfig, "TopicReplicationNum", 3)
 	glob.SetIfZero(&d.KafkaConfig, "MinInsyncReplicas", 3)
-	//glob.SetIfZero(&d.KafkaConfig, "Timeout", int64(60*time.Second))
+	glob.SetIfZero(d, "DefaultGroupID", glob.GetHashMacAddrs())
+	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
 	return *d
 }
 func (d Dispatcher) ToCoreConfig() core.CoreConfig {
