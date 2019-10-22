@@ -1,5 +1,13 @@
 # Changelog
 
+### Version 1.10.11 (2019-10-22)
+
+Features:
+- 增加producer option: `ProducerSetMessageKey` 自訂message key, 影響進入的partition
+
+Bug Fixes:
+- 修復初始化時使用者指定0值不會被覆蓋成預設值問題 (workerNum, groupID)
+
 ### Version 1.10.10 (2019-10-15)
 
 Bug Fixes:
