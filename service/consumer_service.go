@@ -18,7 +18,8 @@ import (
 var ConsumerService = &consumerService{}
 
 type consumerService struct {
-	subscribedTopics sync.Map
+	lockers       sync.Map
+	subscriptions sync.Map
 }
 
 func (consumerService *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (c *Consumer, err error) {
@@ -45,7 +46,7 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	consumer, err = consumerService.getNew(topic, offsetOldest, groupID, callback, asyncNum, ctx)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
-		consumerService.removeSubTopic(topic)
+		consumerService.removeSub(topic)
 		return
 	}
 	groupID = consumer.GroupID
@@ -128,32 +129,36 @@ func (consumerService *consumerService) newSaramaConsumer(topic string, offsetOl
 
 // createTopic 檢查topic已訂閱, 創建topic
 func (consumerService *consumerService) createTopic(topic string) (err error) {
-	// Check topic already subscribed
-	if consumerService.isTopicAlreadySubscribed(topic) {
+	lockerI, _ := consumerService.lockers.LoadOrStore(topic, new(sync.Mutex))
+	locker := lockerI.(*sync.Mutex)
+	locker.Lock()
+	defer locker.Unlock()
+
+	if consumerService.isSub(topic) {
 		err = model.ErrSubscribeOnSubscribedTopic
 		return
 	}
 
-	// Create topic
 	err = TopicService.Create(topic)
 	if err != nil {
 		return
 	}
-	consumerService.addToSubscribingTopics(topic)
+
+	consumerService.addSub(topic)
 	return
 }
 
-func (consumerService *consumerService) addToSubscribingTopics(topic string) {
-	consumerService.subscribedTopics.Store(topic, struct{}{})
-}
-
-func (consumerService *consumerService) isTopicAlreadySubscribed(topic string) (existed bool) {
-	_, existed = consumerService.subscribedTopics.Load(topic)
+func (consumerService *consumerService) isSub(topic string) (existed bool) {
+	_, existed = consumerService.subscriptions.Load(topic)
 	return
 }
 
-func (consumerService *consumerService) removeSubTopic(topic string) {
-	consumerService.subscribedTopics.Delete(topic)
+func (consumerService *consumerService) addSub(topic string) {
+	consumerService.subscriptions.Store(topic, struct{}{})
+}
+
+func (consumerService *consumerService) removeSub(topic string) {
+	consumerService.subscriptions.Delete(topic)
 	TopicService.RemoveMapEntry(topic)
 }
 
@@ -232,7 +237,7 @@ func (c *Consumer) close(err error) {
 		close(c.ConsumeErrChan)
 
 		// Clear other data
-		ConsumerService.removeSubTopic(c.Topic)
+		ConsumerService.removeSub(c.Topic)
 
 		// Close started chan manually in case of error occurs on establishing consumer and the subscribe() func had returned.
 		c.handler.started()
