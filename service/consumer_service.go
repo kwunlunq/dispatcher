@@ -22,31 +22,31 @@ type consumerService struct {
 	subscriptions sync.Map
 }
 
-func (consumerService *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (c *Consumer, err error) {
+func (c *consumerService) Subscribe(topic string, callback model.ConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
 	if !core.IsInitialized() {
 		err = model.ErrNotInitialized
 		return
 	}
 
 	dis := model.MakeDispatcher(opts)
-	c, err = consumerService.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
+	consumer, err = c.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
 	return
 }
 
-func (consumerService *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
+func (c *consumerService) subscribe(topic string, groupID string, callback model.ConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
 
 	// Create topic
-	err = consumerService.createTopic(topic)
+	err = c.createTopic(topic)
 	if err != nil {
 		return
 	}
 
 	// Create Consumer
 	ctx := context.Background()
-	consumer, err = consumerService.getNew(topic, offsetOldest, groupID, callback, asyncNum, ctx)
+	consumer, err = c.getNew(topic, offsetOldest, groupID, callback, asyncNum, ctx)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
-		consumerService.removeSub(topic)
+		c.removeSub(topic)
 		return
 	}
 	groupID = consumer.GroupID
@@ -87,13 +87,13 @@ func (consumerService *consumerService) subscribe(topic string, groupID string, 
 	return
 }
 
-func (consumerService *consumerService) getNew(topic string, offsetOldest bool, groupID string, callback model.ConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
+func (c *consumerService) getNew(topic string, offsetOldest bool, groupID string, callback model.ConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
 	// Create consumer group for each topic
-	groupID = consumerService.getValidGroupID(topic, groupID)
+	groupID = c.getValidGroupID(topic, groupID)
 
 	// Create sarama consumer
 	var group sarama.ConsumerGroup
-	group, err = consumerService.newSaramaConsumer(topic, offsetOldest, groupID)
+	group, err = c.newSaramaConsumer(topic, offsetOldest, groupID)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating sarama Consumer of Topic [%v]", topic)
 		return
@@ -104,7 +104,7 @@ func (consumerService *consumerService) getNew(topic string, offsetOldest bool, 
 	return
 }
 
-func (consumerService *consumerService) newSaramaConsumer(topic string, offsetOldest bool, groupID string) (group sarama.ConsumerGroup, err error) {
+func (c *consumerService) newSaramaConsumer(topic string, offsetOldest bool, groupID string) (group sarama.ConsumerGroup, err error) {
 	err = TopicService.Create(topic)
 	if err != nil {
 		return
@@ -128,13 +128,13 @@ func (consumerService *consumerService) newSaramaConsumer(topic string, offsetOl
 }
 
 // createTopic 檢查topic已訂閱, 創建topic
-func (consumerService *consumerService) createTopic(topic string) (err error) {
-	lockerI, _ := consumerService.lockers.LoadOrStore(topic, new(sync.Mutex))
+func (c *consumerService) createTopic(topic string) (err error) {
+	lockerI, _ := c.lockers.LoadOrStore(topic, new(sync.Mutex))
 	locker := lockerI.(*sync.Mutex)
 	locker.Lock()
 	defer locker.Unlock()
 
-	if consumerService.isSub(topic) {
+	if c.isSub(topic) {
 		err = model.ErrSubscribeOnSubscribedTopic
 		return
 	}
@@ -144,25 +144,25 @@ func (consumerService *consumerService) createTopic(topic string) (err error) {
 		return
 	}
 
-	consumerService.addSub(topic)
+	c.addSub(topic)
 	return
 }
 
-func (consumerService *consumerService) isSub(topic string) (existed bool) {
-	_, existed = consumerService.subscriptions.Load(topic)
+func (c *consumerService) isSub(topic string) (existed bool) {
+	_, existed = c.subscriptions.Load(topic)
 	return
 }
 
-func (consumerService *consumerService) addSub(topic string) {
-	consumerService.subscriptions.Store(topic, struct{}{})
+func (c *consumerService) addSub(topic string) {
+	c.subscriptions.Store(topic, struct{}{})
 }
 
-func (consumerService *consumerService) removeSub(topic string) {
-	consumerService.subscriptions.Delete(topic)
+func (c *consumerService) removeSub(topic string) {
+	c.subscriptions.Delete(topic)
 	TopicService.RemoveMapEntry(topic)
 }
 
-func (consumerService *consumerService) getValidGroupID(topic, groupID string) string {
+func (c *consumerService) getValidGroupID(topic, groupID string) string {
 	if strings.TrimSpace(groupID) == "" {
 		groupID = core.Config.DefaultGroupID
 	}
@@ -301,7 +301,7 @@ func (h *consumerHandler) started() {
 	})
 }
 
-func (consumerService *consumerService) SubscribeWithRetry(topic string, callback model.ConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (err error) {
+func (c *consumerService) SubscribeWithRetry(topic string, callback model.ConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (err error) {
 	failCount := 0
 
 	// Blocked until error count reach limit
