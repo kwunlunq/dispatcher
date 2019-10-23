@@ -1,7 +1,10 @@
 package dispatcher
 
-import "gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+import (
+	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+)
 
 func IsErrSubscribeOnExistedTopic(err error) bool {
-	return err == model.ErrSubscribeOnSubscribedTopic
+	return errors.Cause(err) == model.ErrSubscribeOnSubscribedTopic
 }
