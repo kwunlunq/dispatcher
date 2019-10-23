@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+	"time"
 )
 
 /*
@@ -22,6 +23,14 @@ func ProducerEnsureOrder() model.Option {
 // ProducerSetMessageKey set the key for each message
 func ProducerSetMessageKey(key string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ProducerMessageKey = key })
+}
+
+// ProducerSetReplyHandler collect reply message from consumer along with transmission related information.
+func ProducerCollectReplyMessage(retryHandler func(Message, error), timeout time.Duration) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) {
+		d.ProducerReplyHandler = func(message model.DispatcherMessage, err error) { retryHandler(Message(message), err) }
+		d.ProducerReplyTimeout = timeout
+	})
 }
 
 /*

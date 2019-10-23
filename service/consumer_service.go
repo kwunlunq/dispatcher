@@ -259,32 +259,30 @@ func (h *consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-// 執行次數 = 分到的partition數量
+// ConsumeClaim 處理收到的訊息, 執行次數 = 分到的partition數量
 func (h *consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 
 	core.Logger.Debugf("Consumer claim [init/high offset: %v/%v, topic: %v, partition: %v]", claim.InitialOffset(), claim.HighWaterMarkOffset(), claim.Topic(), claim.Partition())
 	h.started()
 
-	// Receive processed messages
-	go h.markMessage(sess)
+	h.processMessages(claim)
 
-	// Process messages
-	h.claimMessage(claim)
+	go h.markProcessedMessages(sess)
 
 	core.Logger.Debugf("Finished consuming claim.")
 	return nil
 }
 
-func (h *consumerHandler) claimMessage(claim sarama.ConsumerGroupClaim) {
+func (h *consumerHandler) processMessages(claim sarama.ConsumerGroupClaim) {
 	for msg := range claim.Messages() {
 		h.pool.AddJob(msg)
 	}
 }
 
-func (h *consumerHandler) markMessage(sess sarama.ConsumerGroupSession) {
+func (h *consumerHandler) markProcessedMessages(sess sarama.ConsumerGroupSession) {
 	for {
 		select {
-		case result, ok := <-h.pool.Results():
+		case result, ok := <-h.pool.Processed():
 			if !ok {
 				return
 			}

@@ -119,7 +119,8 @@ func (s *topicService) create(topic string) (err error) {
 
 	// Setup the Topic details in CreateTopicRequest struct
 	topicDetail := &sarama.TopicDetail{}
-	topicDetail.NumPartitions = int32(core.Config.KafkaConfig.TopicPartitionNum)
+	//topicDetail.NumPartitions = int32(core.Config.KafkaConfig.TopicPartitionNum)
+	//topicDetail.NumPartitions
 	topicDetail.ReplicationFactor = int16(core.Config.KafkaConfig.TopicReplicationNum)
 	topicDetail.ConfigEntries = make(map[string]*string)
 	if core.Config.KafkaConfig.MinInsyncReplicas > 0 {

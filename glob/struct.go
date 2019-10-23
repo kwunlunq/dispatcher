@@ -1,6 +1,8 @@
 package glob
 
 import (
+	"encoding/json"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"log"
 	"reflect"
 )
@@ -36,4 +38,13 @@ func SetIfZero(obj interface{}, field string, value interface{}) {
 
 func IsZeroValue(val interface{}) bool {
 	return reflect.DeepEqual(val, reflect.Zero(reflect.TypeOf(val)).Interface())
+}
+
+func StructToBytes(item interface{}) (value []byte) {
+	var err error
+	value, err = json.Marshal(item)
+	if err != nil {
+		core.Logger.Error("Error marshalling struct:", err.Error())
+	}
+	return
 }

@@ -19,6 +19,8 @@ type Dispatcher struct {
 	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer
 	ProducerEnsureOrder bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
 	ProducerMessageKey  string
+	ProducerReplyHandler func(DispatcherMessage, error)
+	ProducerReplyTimeout time.Duration
 
 	// Consumer options
 	ConsumerAsyncNum   int  // num of gorutine to process msg
@@ -66,6 +68,7 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC.Consumer.Return.Errors = true
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest    // OffsetNewest,Oldest
 	tmpC.Consumer.Group.Session.Timeout = 30 * time.Second // Default 10s
+	//tmpC.Consumer.Group.Heartbeat = timeout              // Default 3s, should be set to lower than 1/3 of Consumer.Group.Session.Timeout
 	//tmpC.Net.DialTimeout = timeout  // default 30s
 	//tmpC.Net.ReadTimeout = timeout  // default 30s
 	//tmpC.Net.WriteTimeout = timeout // default 30s

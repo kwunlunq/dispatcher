@@ -6,6 +6,10 @@ func ErrTopic(topic string) string {
 	return topic + "_ERR"
 }
 
+func ReplyTopic(topic string) string {
+	return topic + "_Reply"
+}
+
 func TrimBytes(bytes []byte) string {
 	str := string(bytes)
 	if len(str) > 150 {
