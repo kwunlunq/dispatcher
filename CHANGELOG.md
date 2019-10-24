@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.10.12 (2019-10-24)
+
+Bug Fixes:
+- 修復並行goroutine重複訂閱同個topic產生的異常問題
+
 ### Version 1.10.11 (2019-10-22)
 
 Features:
