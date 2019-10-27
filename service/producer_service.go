@@ -173,21 +173,13 @@ func (p *producerService) listenReplyFromConsumer(topic string, task model.Dispa
 	//dis.ProducerReplyHandler(replyTask, err)
 }
 
-func handleConsumerError(producerErrHandler model.ProducerCustomerErrHandler) model.ConsumerCallback {
-	defer func() {
-		if err := recover(); err != nil {
-			core.Logger.Errorf("Panic on err handler: %v", string(debug.Stack()))
-		}
-	}()
-	return func(value []byte) error {
-		var message model.DispatcherMessage
-		err := json.Unmarshal(value, &message)
-		if err != nil {
-			err = wraperrors.Wrap(err, "error parsing callbackErr")
-			core.Logger.Error(err.Error(), string(value))
-			producerErrHandler(nil, err)
-			return nil
-		}
+func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler) model.DispatcherMessageConsumerCallback {
+	return func(message model.DispatcherMessage) error {
+		defer func() {
+			if err := recover(); err != nil {
+				core.Logger.Errorf("Panic on producer err handler: %v", string(debug.Stack()))
+			}
+		}()
 		producerErrHandler(message.Value, errors.New(message.ConsumerErrorStr))
 		return nil
 	}
@@ -204,7 +196,7 @@ func (p *producerService) consumeReplyMessages(task model.DispatcherTask) {
 }
 
 // handleReplyMessage 執行handler, 移出tasks
-func (p *producerService) handleReplyMessage() model.ConsumerCallback {
+func (p *producerService) handleReplyMessage() model.BytesConsumerCallback {
 	return func(value []byte) error {
 		// Parse
 		var replyMessage model.DispatcherMessage

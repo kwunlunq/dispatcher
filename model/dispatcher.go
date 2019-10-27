@@ -4,6 +4,8 @@ import (
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"log"
+	"os"
 	"time"
 )
 
@@ -16,9 +18,9 @@ type Dispatcher struct {
 	UserKey        string
 
 	// Producer options
-	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer
-	ProducerEnsureOrder bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
-	ProducerMessageKey  string
+	ProducerErrHandler   ProducerCustomerErrHandler // handle error from consumer
+	ProducerEnsureOrder  bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
+	ProducerMessageKey   string
 	ProducerReplyHandler func(DispatcherMessage, error)
 	ProducerReplyTimeout time.Duration
 
@@ -83,8 +85,10 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC.ClientID = "dispatcher"
 
 	// Switch on sarama log if needed
-	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
-	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+	if d.LogLevel == "debug" {
+		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
+	}
+	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
 	return tmpC
 }

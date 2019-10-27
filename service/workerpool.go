@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"runtime/debug"
 	"time"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
@@ -32,12 +32,12 @@ type workerPool struct {
 	processedMessages chan *sarama.ConsumerMessage
 	errors            chan *model.DispatcherMessage
 	replies           chan *model.DispatcherMessage
-	callback          model.ConsumerCallback
+	callback          model.DispatcherMessageConsumerCallback
 	isCollectResult   bool
 	ctx               context.Context
 }
 
-func (poolService workerPoolService) MakeWorkerPool(callback model.ConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) WorkerPool {
+func (poolService workerPoolService) MakeWorkerPool(callback model.DispatcherMessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) WorkerPool {
 
 	pool := poolService.new(callback, poolSize, isCollectResult, ctx)
 
@@ -51,7 +51,7 @@ func (poolService workerPoolService) MakeWorkerPool(callback model.ConsumerCallb
 	return pool
 }
 
-func (poolService workerPoolService) new(callback model.ConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) workerPool {
+func (poolService workerPoolService) new(callback model.DispatcherMessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) workerPool {
 	maxSize := 100000
 	return workerPool{
 		jobs:              make(chan *sarama.ConsumerMessage),
@@ -92,24 +92,22 @@ func (p workerPool) newWorker(id int) {
 	}
 }
 
-func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
+func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
-	core.Logger.Debugf("(Worker[%v]) Starting work [%v-%v-%v/%v] ...", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value))
+	core.Logger.Debugf("(Worker[%v]) Starting work [%v-%v-%v/%v] ...", workerID, saramaMsg.Topic, saramaMsg.Partition, saramaMsg.Offset, glob.TrimBytes(saramaMsg.Value))
 
 	// Mark offset after message processed / any error occurs
-	defer func() { p.processedMessages <- job }()
+	defer func() { p.processedMessages <- saramaMsg }()
+
+	// TODO: consume callback 吃 []byte 改為吃 *sarama.ConsumerMessage, 解析轉成DispatcherMessage
 
 	// Parse
-	var message model.DispatcherMessage
-	err := json.Unmarshal(job.Value, &message)
+	message, err := p.parse(saramaMsg)
 	if err != nil {
-		core.Logger.Error("Error parsing message from producer", string(job.Value))
+		err = errors.Wrapf(err, "error parsing message: %v", string(saramaMsg.Value))
+		//core.Logger.Error(err.Error())
 		return
 	}
-
-	message.ConsumerReceivedTime = time.Now()
-	message.Offset = job.Offset
-	message.Partition = job.Partition
 
 	// Send reply
 	if message.IsReplyMessage {
@@ -118,16 +116,44 @@ func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
 
 	// Process message
 	if p.callback != nil {
-		p.processMessage(workerID, job, message)
+		p.processMessage(workerID, message)
 	}
+}
+
+func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (dispatcherMsg model.DispatcherMessage, err error) {
+	err = json.Unmarshal(saramaMsg.Value, &dispatcherMsg)
+	if err != nil {
+		return
+	}
+
+	// TODO: 移除相容舊版訊息格式
+	if dispatcherMsg.TaskID == "" {
+		// 解析失敗, 嘗試使用舊版格式 (可能為 model.ConsumerCallbackError 或 []byte)
+		// try parsing to model.ConsumerCallbackError
+		var tmp model.ConsumerCallbackError
+		err = json.Unmarshal(saramaMsg.Value, &tmp)
+		if tmp.ErrStr != "" {
+			dispatcherMsg.ConsumerErrorStr = tmp.ErrStr
+			dispatcherMsg.Value = tmp.Message.Value
+		} else {
+			// original message is []byte
+			dispatcherMsg.Value = saramaMsg.Value
+		}
+	}
+
+	dispatcherMsg.ConsumerReceivedTime = time.Now()
+	dispatcherMsg.Offset = saramaMsg.Offset
+	dispatcherMsg.Partition = saramaMsg.Partition
+	return
 }
 
 func (p workerPool) sendBack(messagesChan chan *model.DispatcherMessage, getTopic func(oriTopic string) string) {
 	for message := range messagesChan {
-		if !message.IsSendBack {
-			continue
-		}
-		message.IsSendBack = false // 僅回送一次
+		// 僅回送一次
+		message.IsSendError = false
+		message.IsReplyMessage = false
+
+		// 發送訊息
 		message.Topic = getTopic(message.Topic)
 		err := ProducerService.send(message)
 		if err != nil {
@@ -140,20 +166,21 @@ func (p workerPool) done(job *sarama.ConsumerMessage) {
 	p.processedMessages <- job
 }
 
-func (p workerPool) processMessage(workerID string, job *sarama.ConsumerMessage, message model.DispatcherMessage) {
+func (p workerPool) processMessage(workerID string, message model.DispatcherMessage) {
 
-	// Custom callback
+	// Catch panic on custom callback
 	defer func() {
 		if err := recover(); err != nil {
 			core.Logger.Errorf("(Worker[%v]) Panic on user's callback: %v, stack trace: \n%v", workerID, err, string(debug.Stack()))
 		}
 	}()
-	err := p.callback(message.Value)
+
+	err := p.callback(message)
 
 	// Send error message
-	if err != nil && message.IsSendError {
+	if err != nil && (message.IsSendError || message.TaskID == "" /* TODO: 相容舊版 */) {
 		message.ConsumerErrorStr = err.Error()
 		p.errors <- &message
-		core.Logger.Debugf("(Worker[%v]) Error doing work [%v-%v-%v/%v]: %v", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value), err.Error())
+		core.Logger.Debugf("(Worker[%v]) Error doing work [%v-%v-%v/%v]: %v", workerID, message.Topic, message.Partition, message.Offset, glob.TrimBytes(message.Value), err.Error())
 	}
 }
