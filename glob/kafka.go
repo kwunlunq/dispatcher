@@ -37,3 +37,7 @@ func AppendSuffix(str string, suffix string, ch string) string {
 	}
 	return str + suffix
 }
+
+func GenDefaultGroupID() string {
+	return GetHashMacAddrs()
+}

@@ -37,7 +37,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(&d.KafkaConfig, "TopicPartitionNum", 10)
 	glob.SetIfZero(&d.KafkaConfig, "TopicReplicationNum", 3)
 	glob.SetIfZero(&d.KafkaConfig, "MinInsyncReplicas", 3)
-	glob.SetIfZero(d, "DefaultGroupID", glob.GetHashMacAddrs())
+	glob.SetIfZero(d, "DefaultGroupID", glob.GenDefaultGroupID())
 	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
 	return *d
 }

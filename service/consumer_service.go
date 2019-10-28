@@ -269,9 +269,9 @@ func (h *consumerHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim s
 	core.Logger.Debugf("Consumer claim [init/high offset: %v/%v, topic: %v, partition: %v]", claim.InitialOffset(), claim.HighWaterMarkOffset(), claim.Topic(), claim.Partition())
 	h.started()
 
-	h.processMessages(claim)
-
 	go h.markProcessedMessages(sess)
+
+	h.processMessages(claim) // blocked
 
 	core.Logger.Debugf("Finished consuming claim.")
 	return nil

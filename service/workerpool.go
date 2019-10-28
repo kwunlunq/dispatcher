@@ -99,8 +99,6 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 	// Mark offset after message processed / any error occurs
 	defer func() { p.processedMessages <- saramaMsg }()
 
-	// TODO: consume callback 吃 []byte 改為吃 *sarama.ConsumerMessage, 解析轉成DispatcherMessage
-
 	// Parse
 	message, err := p.parse(saramaMsg)
 	if err != nil {

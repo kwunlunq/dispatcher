@@ -135,7 +135,7 @@ func (p *producerService) close() {
 }
 
 func (p *producerService) listenErrorFromConsumer(topic string, errHandler model.ProducerCustomerErrHandler) {
-	c, err := ConsumerService.Subscribe(glob.ErrTopic(topic), handleConsumerError(errHandler))
+	c, err := ConsumerService.subscribe(glob.ErrTopic(topic), glob.GenDefaultGroupID(), wrapProducerErrHandler(errHandler), 1, true)
 	if err != nil {
 		if wraperrors.Cause(err) != model.ErrSubscribeOnSubscribedTopic {
 			core.Logger.Error("Error creating consumer:", err.Error())
