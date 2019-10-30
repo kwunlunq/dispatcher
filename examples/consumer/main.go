@@ -112,5 +112,5 @@ func callback(value []byte) error {
 	fmt.Println("receive message:", string(value))
 
 	// return error if there's any, will be sent to producer's errHandler
-	return errors.New("來些測試錯誤")
+	return errors.New("只是一個測試錯誤")
 }

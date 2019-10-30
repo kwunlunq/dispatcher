@@ -27,7 +27,7 @@ func (c *consumerService) Subscribe(topic string, callback model.BytesConsumerCa
 	return
 }
 
-func (c *consumerService) SubscribeWithMessageCallback(topic string, callback model.DispatcherMessageConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
+func (c *consumerService) SubscribeWithMessageCallback(topic string, callback model.MessageConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
 	if !core.IsInitialized() {
 		err = model.ErrNotInitialized
 		return
@@ -37,7 +37,7 @@ func (c *consumerService) SubscribeWithMessageCallback(topic string, callback mo
 	return
 }
 
-func (c *consumerService) subscribe(topic string, groupID string, callback model.DispatcherMessageConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
+func (c *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
 
 	// Create topic
 	err = c.createTopic(topic)
@@ -91,7 +91,7 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 	return
 }
 
-func (c *consumerService) getNew(topic string, offsetOldest bool, groupID string, callback model.DispatcherMessageConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
+func (c *consumerService) getNew(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, ctx context.Context) (dispatcherConsumer *Consumer, err error) {
 	// Create consumer group for each topic
 	groupID = c.getValidGroupID(topic, groupID)
 
@@ -185,7 +185,7 @@ type Consumer struct {
 	saramaConsumer sarama.ConsumerGroup
 }
 
-func newConsumer(group sarama.ConsumerGroup, topic, groupID string, ctx context.Context, asyncNum int, callback model.DispatcherMessageConsumerCallback) *Consumer {
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, ctx context.Context, asyncNum int, callback model.MessageConsumerCallback) *Consumer {
 
 	var cancelFunc context.CancelFunc
 	ctx, cancelFunc = context.WithCancel(ctx)
@@ -304,19 +304,23 @@ func (h *consumerHandler) started() {
 }
 
 func (c *consumerService) SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (err error) {
+	return c.subscribeWithRetryMessageCallback(topic, callback.Wrap(), failRetryLimit, getRetryDuration, opts...)
+}
+
+func (c *consumerService) subscribeWithRetryMessageCallback(topic string, callback model.MessageConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (err error) {
 	failCount := 0
 
 	// Blocked until error count reach limit
 	for {
 		// Create subscriber
 		var c *Consumer
-		c, err = ConsumerService.Subscribe(topic, callback, opts...)
+		c, err = ConsumerService.SubscribeWithMessageCallback(topic, callback, opts...)
 
 		// Handle subscriber creation error
 		if err != nil {
 			// Stop create subscriber if the topic had been subscribed
 			if errors.Cause(err) == model.ErrSubscribeOnSubscribedTopic {
-				core.Logger.Infof("Stop create consumer, since the topic [%v] has been subscribed", topic)
+				core.Logger.Debugf("Stop create consumer, since the topic [%v] has been subscribed", topic)
 				break
 			}
 			failCount++

@@ -21,7 +21,7 @@ type Dispatcher struct {
 	ProducerErrHandler   ProducerCustomerErrHandler // handle error from consumer
 	ProducerEnsureOrder  bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
 	ProducerMessageKey   string
-	ProducerReplyHandler func(DispatcherMessage, error)
+	ProducerReplyHandler func(Message, error)
 	ProducerReplyTimeout time.Duration
 
 	// Consumer options
@@ -52,6 +52,8 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC := sarama.NewConfig()
 	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 
+	// TODO: 釋出所有timeout設定值
+
 	//timeout := d.KafkaConfig.Timeout
 
 	// Net
@@ -75,6 +77,7 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	//tmpC.Net.ReadTimeout = timeout  // default 30s
 	//tmpC.Net.WriteTimeout = timeout // default 30s
 
+	// TODO: 支援TLS
 	// TLS
 	// tlsConfig := createTlsConfiguration()
 	// if tlsConfig != nil {

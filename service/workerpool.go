@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"runtime/debug"
 	"time"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 
 	"github.com/Shopify/sarama"
 )
@@ -30,14 +29,14 @@ type WorkerPool interface {
 type workerPool struct {
 	jobs              chan *sarama.ConsumerMessage
 	processedMessages chan *sarama.ConsumerMessage
-	errors            chan *model.DispatcherMessage
-	replies           chan *model.DispatcherMessage
-	callback          model.DispatcherMessageConsumerCallback
+	errors            chan *model.Message
+	replies           chan *model.Message
+	callback          model.MessageConsumerCallback
 	isCollectResult   bool
 	ctx               context.Context
 }
 
-func (poolService workerPoolService) MakeWorkerPool(callback model.DispatcherMessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) WorkerPool {
+func (poolService workerPoolService) MakeWorkerPool(callback model.MessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) WorkerPool {
 
 	pool := poolService.new(callback, poolSize, isCollectResult, ctx)
 
@@ -51,13 +50,13 @@ func (poolService workerPoolService) MakeWorkerPool(callback model.DispatcherMes
 	return pool
 }
 
-func (poolService workerPoolService) new(callback model.DispatcherMessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) workerPool {
+func (poolService workerPoolService) new(callback model.MessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) workerPool {
 	maxSize := 100000
 	return workerPool{
 		jobs:              make(chan *sarama.ConsumerMessage),
 		processedMessages: make(chan *sarama.ConsumerMessage, maxSize),
-		errors:            make(chan *model.DispatcherMessage, maxSize),
-		replies:           make(chan *model.DispatcherMessage, maxSize),
+		errors:            make(chan *model.Message, maxSize),
+		replies:           make(chan *model.Message, maxSize),
 		callback:          callback,
 		isCollectResult:   isCollectResult,
 		ctx:               ctx,
@@ -118,34 +117,39 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 	}
 }
 
-func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (dispatcherMsg model.DispatcherMessage, err error) {
-	err = json.Unmarshal(saramaMsg.Value, &dispatcherMsg)
+func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Message, err error) {
+	err = json.Unmarshal(saramaMsg.Value, &message)
 	if err != nil {
 		return
 	}
 
 	// TODO: 移除相容舊版訊息格式
-	if dispatcherMsg.TaskID == "" {
+	if message.TaskID == "" {
 		// 解析失敗, 嘗試使用舊版格式 (可能為 model.ConsumerCallbackError 或 []byte)
 		// try parsing to model.ConsumerCallbackError
 		var tmp model.ConsumerCallbackError
 		err = json.Unmarshal(saramaMsg.Value, &tmp)
 		if tmp.ErrStr != "" {
-			dispatcherMsg.ConsumerErrorStr = tmp.ErrStr
-			dispatcherMsg.Value = tmp.Message.Value
+			message.ConsumerErrorStr = tmp.ErrStr
+			message.Value = tmp.Message.Value
 		} else {
 			// original message is []byte
-			dispatcherMsg.Value = saramaMsg.Value
+			message.Value = saramaMsg.Value
 		}
 	}
 
-	dispatcherMsg.ConsumerReceivedTime = time.Now()
-	dispatcherMsg.Offset = saramaMsg.Offset
-	dispatcherMsg.Partition = saramaMsg.Partition
+	message.Offset = saramaMsg.Offset
+	message.Partition = saramaMsg.Partition
+	// 加上時間戳
+	if message.ConsumerReceivedTime.IsZero() {
+		message.ConsumerReceivedTime = time.Now()
+	} else if message.ProducerReceivedTime.IsZero() {
+		message.ProducerReceivedTime = time.Now()
+	}
 	return
 }
 
-func (p workerPool) sendBack(messagesChan chan *model.DispatcherMessage, getTopic func(oriTopic string) string) {
+func (p workerPool) sendBack(messagesChan chan *model.Message, getTopic func(oriTopic string) string) {
 	for message := range messagesChan {
 		// 僅回送一次
 		message.IsSendError = false
@@ -164,7 +168,7 @@ func (p workerPool) done(job *sarama.ConsumerMessage) {
 	p.processedMessages <- job
 }
 
-func (p workerPool) processMessage(workerID string, message model.DispatcherMessage) {
+func (p workerPool) processMessage(workerID string, message model.Message) {
 
 	// Catch panic on custom callback
 	defer func() {

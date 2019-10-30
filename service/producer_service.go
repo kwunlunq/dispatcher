@@ -33,27 +33,25 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 
 	// Send message
 	dis := model.MakeDispatcher(opts)
-	task := model.NewDispatcherTask(topic, value, dis)
+	task := model.NewTask(topic, value, dis)
 	err = p.send(&task.Message)
 	if err != nil {
 		return
 	}
 
-	// TODO: 整合 err, reply handler
-
 	// Listen errors from consumer
 	if dis.ProducerErrHandler != nil {
-		go p.listenErrorFromConsumer(topic, dis.ProducerErrHandler)
+		go p.consumerListener(glob.ErrTopic(topic), wrapProducerErrHandler(dis.ProducerErrHandler))
 	}
 
-	// Listen reply from consumer
+	// Listen replies from consumer
 	if dis.ProducerReplyHandler != nil {
-		go p.listenReplyFromConsumer(topic, task)
+		go p.replyMessageListener(task)
 	}
 	return
 }
 
-func (p *producerService) send(message *model.DispatcherMessage) (err error) {
+func (p *producerService) send(message *model.Message) (err error) {
 
 	// Create topic
 	err = TopicService.Create(message.Topic)
@@ -67,6 +65,12 @@ func (p *producerService) send(message *model.DispatcherMessage) (err error) {
 		return
 	}
 
+	// Send message via sarama api
+	err = p.sendSaramaMessage(message)
+	return
+}
+
+func (p *producerService) sendSaramaMessage(message *model.Message) (err error) {
 	// Close producer if panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -75,11 +79,11 @@ func (p *producerService) send(message *model.DispatcherMessage) (err error) {
 		}
 	}()
 
-	// Send message
+	// Prepare sarama message
 	var messageBytes []byte
 	messageBytes, err = json.Marshal(message)
 	if err != nil {
-		err = wraperrors.Wrap(err, "err converting DispatcherTask on sending")
+		err = wraperrors.Wrap(err, "err converting Task on sending")
 		return
 	}
 	saramaMessage := &sarama.ProducerMessage{Topic: message.Topic, Value: sarama.ByteEncoder(messageBytes)}
@@ -108,6 +112,7 @@ func (p *producerService) createProducer() (err error) {
 		p.lock.Lock()
 		defer p.lock.Unlock()
 		if p.producer == nil {
+			// Create/Get client
 			var client sarama.Client
 			client, err = ClientService.Get()
 			if err != nil {
@@ -115,6 +120,7 @@ func (p *producerService) createProducer() (err error) {
 				core.Logger.Errorf("Error creating Producer: %s", err)
 				return
 			}
+			// Create producer
 			p.producer, err = sarama.NewAsyncProducerFromClient(client)
 			core.Logger.Debugf("Producer created.")
 			if err != nil {
@@ -134,47 +140,8 @@ func (p *producerService) close() {
 	}
 }
 
-func (p *producerService) listenErrorFromConsumer(topic string, errHandler model.ProducerCustomerErrHandler) {
-	c, err := ConsumerService.subscribe(glob.ErrTopic(topic), glob.GenDefaultGroupID(), wrapProducerErrHandler(errHandler), 1, true)
-	if err != nil {
-		if wraperrors.Cause(err) != model.ErrSubscribeOnSubscribedTopic {
-			core.Logger.Error("Error creating consumer:", err.Error())
-		}
-		return
-	}
-	consumeErr, _ := <-c.ConsumeErrChan
-	if consumeErr != nil {
-		core.Logger.Error("Error consuming:", consumeErr.Error())
-	}
-}
-
-// listenReplyFromConsumer 建立 & 執行 reply 任務, 並監控過期任務
-func (p *producerService) listenReplyFromConsumer(topic string, task model.DispatcherTask) {
-
-	// Add task
-	p.replyTasks.Store(task.Message.TaskID, task)
-	//defer p.replyTasks.Delete(task.ID)
-
-	// Check and remove expired task
-	go p.cleanerOnce.Do(func() { p.cleanExpiredTasks() })
-
-	// Start consuming reply messages
-	go p.consumeReplyMessages(task)
-
-	// Listen until timeout exceed
-	//replyTask, err := p.listenReplyMessageUntilTimeout(task, dis.ProducerReplyTimeout)
-
-	// Custom handle process
-	//defer func() {
-	//	if err := recover(); err != nil {
-	//		core.Logger.Errorf("Panic on custom retry handler: %v", string(debug.Stack()))
-	//	}
-	//}()
-	//dis.ProducerReplyHandler(replyTask, err)
-}
-
-func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler) model.DispatcherMessageConsumerCallback {
-	return func(message model.DispatcherMessage) error {
+func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler) model.MessageConsumerCallback {
+	return func(message model.Message) error {
 		defer func() {
 			if err := recover(); err != nil {
 				core.Logger.Errorf("Panic on producer err handler: %v", string(debug.Stack()))
@@ -185,59 +152,53 @@ func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler)
 	}
 }
 
-// consumeReplyMessages 監聽回條訊息 ( {topic}_Reply )
-func (p *producerService) consumeReplyMessages(task model.DispatcherTask) {
-	retryLimit := 10
-	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount*failCount) * time.Second }
-	consumeErr := ConsumerService.SubscribeWithRetry(glob.ReplyTopic(task.Message.Topic), p.handleReplyMessage(), retryLimit, getRetryDuration)
-	if consumeErr != nil {
-		core.Logger.Error("Error consuming reply message: ", consumeErr.Error())
+// consumerListener 監聽來自consumer的訊息 (error & reply)
+func (p *producerService) consumerListener(topic string, handler model.MessageConsumerCallback) {
+	retryLimit := 5
+	getRetryDuration := func(failCount int) time.Duration { return time.Second }
+	err := ConsumerService.subscribeWithRetryMessageCallback(topic, handler, retryLimit, getRetryDuration)
+	if err != nil {
+		if wraperrors.Cause(err) != model.ErrSubscribeOnSubscribedTopic {
+			core.Logger.Error("Error listening on consumer's message:", err.Error())
+		} else {
+			core.Logger.Debug("Error listening on consumer's message:", err.Error())
+		}
+		return
 	}
 }
 
-// handleReplyMessage 執行handler, 移出tasks
-func (p *producerService) handleReplyMessage() model.BytesConsumerCallback {
-	return func(value []byte) error {
-		// Parse
-		var replyMessage model.DispatcherMessage
-		parseErr := json.Unmarshal(value, &replyMessage)
-		if parseErr != nil {
-			core.Logger.Error("Error parsing reply message: ", parseErr.Error(), ", msg: ", string(value))
-			return nil
-		}
+// replyMessageListener 建立 & 執行 reply 任務, 並監控過期任務
+func (p *producerService) replyMessageListener(task model.Task) {
+	// Add task
+	p.replyTasks.Store(task.Message.TaskID, task)
 
-		// Load from cache
-		taskI, ok := p.replyTasks.Load(replyMessage.TaskID)
+	// Check and remove expired task (start only once)
+	go p.cleanerOnce.Do(func() { p.cleanExpiredTasks() })
+
+	// Start consuming reply messages
+	go p.consumerListener(glob.ReplyTopic(task.Message.Topic), p.handleReplyMessage())
+}
+
+// handleReplyMessage 執行handler, 移出tasks
+func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
+	return func(message model.Message) error {
+		// Load task from cache by taskID to retrieve reply handler
+		taskI, ok := p.replyTasks.Load(message.TaskID)
 		if !ok {
-			core.Logger.Debugf("DispatcherTask not found, taskID: %v, value: %v", replyMessage.TaskID, glob.TrimBytes(replyMessage.Value))
+			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
-		task := taskI.(model.DispatcherTask)
+		task := taskI.(model.Task)
 
 		// Process
+		task.Message = message
+		message.ProducerReceivedTime = time.Now()
 		p.runReplyHandler(task, nil)
-
-		//task.ResultChan <- replyMessageTask
-		//close(task.ResultChan)
 		return nil
 	}
 }
 
-//func (p *producerService) listenReplyMessageUntilTimeout(task model.DispatcherTask, waitTimeout time.Duration) (replyMessage model.DispatcherTask, err error) {
-//	select {
-//	case replyMessage = <-task.ResultChan:
-//	case <-time.NewTimer(waitTimeout).C:
-//		item, ok := p.replyTasks.Load(task.ID)
-//		if ok {
-//			replyMessage = item.(model.DispatcherTask)
-//		}
-//		err = model.ErrTimeout
-//		core.Logger.Error("Error listening reply from consumer:", err.Error())
-//	}
-//	return
-//}
-
-// cleanExpiredTasks 檢查並移出超時的任務
+// cleanExpiredTasks 每5秒鐘檢查一次, 移除超時的任務(時間為使用者自訂)
 func (p *producerService) cleanExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
@@ -247,7 +208,7 @@ func (p *producerService) cleanExpiredTasks() func() {
 		count := 0
 		p.replyTasks.Range(func(key, value interface{}) bool {
 			count++
-			task, ok := value.(model.DispatcherTask)
+			task, ok := value.(model.Task)
 			if !ok {
 				return true
 			}
@@ -266,7 +227,12 @@ func (p *producerService) cleanExpiredTasks() func() {
 }
 
 // runReplyHandler run handler (only once) & remove the task
-func (p *producerService) runReplyHandler(task model.DispatcherTask, err error) {
+func (p *producerService) runReplyHandler(task model.Task, err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			core.Logger.Errorf("Panic on user reply handler", string(debug.Stack()))
+		}
+	}()
 	task.ReplyHandler(task.Message, err)
 	p.replyTasks.Delete(task.Message.TaskID)
 }

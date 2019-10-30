@@ -28,7 +28,7 @@ func ProducerSetMessageKey(key string) model.Option {
 // ProducerSetReplyHandler collect reply message from consumer along with transmission related information.
 func ProducerCollectReplyMessage(retryHandler func(Message, error), timeout time.Duration) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) {
-		d.ProducerReplyHandler = func(message model.DispatcherMessage, err error) { retryHandler(Message(message), err) }
+		d.ProducerReplyHandler = func(message model.Message, err error) { retryHandler(APIMessageFromMessage(message), err) }
 		d.ProducerReplyTimeout = timeout
 	})
 }
@@ -65,7 +65,7 @@ func InitSetDefaultGroupID(defaultGroupID string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.DefaultGroupID = defaultGroupID })
 }
 
-// InitSetLogLevel set log level of log in diapatcher, available levels are debug, info, warn, error.
+// InitSetLogLevel set log level of log in dispatcher, available levels are debug, info, warn, error.
 func InitSetLogLevel(logLevel string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.LogLevel = logLevel })
 }

@@ -48,3 +48,12 @@ func StructToBytes(item interface{}) (value []byte) {
 	}
 	return
 }
+
+func ConvertStruct(one interface{}, another interface{}) interface{} {
+	bytes, _ := json.Marshal(one)
+	err := json.Unmarshal(bytes, &another)
+	if err != nil {
+		core.Logger.Error("ConvertStruct", "Error unmarshaling json: ", err.Error())
+	}
+	return another
+}
