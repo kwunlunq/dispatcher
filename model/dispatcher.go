@@ -4,6 +4,8 @@ import (
 	"github.com/Shopify/sarama"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"log"
+	"os"
 	"time"
 )
 
@@ -16,9 +18,11 @@ type Dispatcher struct {
 	UserKey        string
 
 	// Producer options
-	ProducerErrHandler  ProducerCustomerErrHandler // handle error from consumer
-	ProducerEnsureOrder bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
-	ProducerMessageKey  string
+	ProducerErrHandler   ProducerCustomerErrHandler // handle error from consumer
+	ProducerEnsureOrder  bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
+	ProducerMessageKey   string
+	ProducerReplyHandler func(Message, error)
+	ProducerReplyTimeout time.Duration
 
 	// Consumer options
 	ConsumerAsyncNum   int  // num of gorutine to process msg
@@ -33,7 +37,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(&d.KafkaConfig, "TopicPartitionNum", 10)
 	glob.SetIfZero(&d.KafkaConfig, "TopicReplicationNum", 3)
 	glob.SetIfZero(&d.KafkaConfig, "MinInsyncReplicas", 3)
-	glob.SetIfZero(d, "DefaultGroupID", glob.GetHashMacAddrs())
+	glob.SetIfZero(d, "DefaultGroupID", glob.GenDefaultGroupID())
 	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
 	return *d
 }
@@ -47,6 +51,8 @@ func (d Dispatcher) ToCoreConfig() core.CoreConfig {
 func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC := sarama.NewConfig()
 	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
+
+	// TODO: 釋出所有timeout設定值
 
 	//timeout := d.KafkaConfig.Timeout
 
@@ -66,10 +72,12 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC.Consumer.Return.Errors = true
 	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest    // OffsetNewest,Oldest
 	tmpC.Consumer.Group.Session.Timeout = 30 * time.Second // Default 10s
+	//tmpC.Consumer.Group.Heartbeat = timeout              // Default 3s, should be set to lower than 1/3 of Consumer.Group.Session.Timeout
 	//tmpC.Net.DialTimeout = timeout  // default 30s
 	//tmpC.Net.ReadTimeout = timeout  // default 30s
 	//tmpC.Net.WriteTimeout = timeout // default 30s
 
+	// TODO: 支援TLS
 	// TLS
 	// tlsConfig := createTlsConfiguration()
 	// if tlsConfig != nil {
@@ -80,8 +88,10 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	tmpC.ClientID = "dispatcher"
 
 	// Switch on sarama log if needed
-	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
-	// sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+	if d.LogLevel == "debug" {
+		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
+	}
+	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
 	return tmpC
 }

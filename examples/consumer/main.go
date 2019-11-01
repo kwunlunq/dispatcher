@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	groupID = "kevin"
-	topic   = "dispatcher.example.testing"
-	start   = time.Now()
+	_brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_groupID  = ""
+	_topic    = "dispatcher.example.testing"
+	_start    = time.Now()
+	_logLevel = "info"
 )
 
 func main() {
@@ -23,9 +24,9 @@ func main() {
 }
 
 func consume() {
-	_ = dispatcher.Init(brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{TopicReplicationNum: 5, MinInsyncReplicas: 1}))
-	ctrl, _ := dispatcher.Subscribe(topic, callback)
-	fmt.Println("start after ", time.Now().Sub(start).Seconds(), "s")
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetKafkaConfig(dispatcher.KafkaConfig{TopicReplicationNum: 5, MinInsyncReplicas: 1}))
+	ctrl, _ := dispatcher.Subscribe(_topic, callback)
+	fmt.Println("start after ", time.Now().Sub(_start).Seconds(), "s")
 	<-ctrl.Errors() // blocked
 }
 
@@ -36,7 +37,7 @@ func consumeInRealWorld() {
 	}()
 
 	// Initialization
-	_ = dispatcher.Init(brokers, dispatcher.InitSetDefaultGroupID(groupID))
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID))
 
 	failCount := 0
 	failRetryLimit := 5
@@ -44,7 +45,7 @@ func consumeInRealWorld() {
 
 	for {
 		// Create subscriber
-		subscriberCtrl, err := dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(150))
+		subscriberCtrl, err := dispatcher.Subscribe(_topic, callback, dispatcher.ConsumerSetAsyncNum(150))
 
 		// Handle subscriber creation error
 		if err != nil {
@@ -94,13 +95,13 @@ func consumeWithRetry() {
 	}()
 
 	// Initialization
-	_ = dispatcher.Init(brokers, dispatcher.InitSetDefaultGroupID(groupID))
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID), dispatcher.InitSetLogLevel(_logLevel))
 
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
 	// Subscribe with retry
-	err := dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
+	err := dispatcher.SubscribeWithRetry(_topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -112,5 +113,5 @@ func callback(value []byte) error {
 	fmt.Println("receive message:", string(value))
 
 	// return error if there's any, will be sent to producer's errHandler
-	return errors.New("來些測試錯誤")
+	return errors.New("只是一個測試錯誤")
 }

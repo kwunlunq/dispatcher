@@ -7,23 +7,23 @@ import (
 )
 
 var (
-	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	topic   = "dispatcher.example.testing"
+	_brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_topic   = "dispatcher.example.testing"
+	_groupID = ""
 )
 
 func main() {
-	_ = dispatcher.Init(brokers)
-	i := 1
-	for {
-		send(i)
-		//sendInRealWorld(i)
-		i++
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID))
+	for i := 1; i <= 5; i++ {
+		//send(i)
+		sendInRealWorld(i)
 	}
+	time.Sleep(time.Hour)
 }
 
 func send(i int) {
 	msg := []byte(fmt.Sprintf("message-%v-%v", i, time.Now().Format("15:04:05.999")))
-	_ = dispatcher.Send(topic, msg)
+	_ = dispatcher.Send(_topic, msg)
 	fmt.Println("Message sent:", string(msg))
 }
 
@@ -32,9 +32,15 @@ func sendInRealWorld(i int) {
 	failCount := 0
 	failRetryLimit := 5
 	retryDuration := 3 * time.Second
+	collectReplyTimeout := 60 * time.Second
 
 	for {
-		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
+		err := dispatcher.Send(
+			_topic,
+			msg,
+			dispatcher.ProducerAddErrHandler(errorHandler),
+			dispatcher.ProducerCollectReplyMessage(replyHandler, collectReplyTimeout),
+		)
 
 		// Handle send error
 		if err != nil {
@@ -56,5 +62,14 @@ func sendInRealWorld(i int) {
 
 // Handle error from consumer
 func errorHandler(value []byte, err error) {
-	fmt.Println("Received error from subscriber's callback:", err.Error(), ", of message:", string(value))
+	fmt.Printf("Handle error from consumer: err: [%v], message: [%v]\n", err.Error(), string(value))
+}
+
+func replyHandler(message dispatcher.Message, err error) {
+	if err != nil {
+		fmt.Printf("Handle reply from consumer: err: %v, message: [%+v]\n", err.Error(), message)
+	} else {
+		fmt.Printf("Handle reply from consumer: [%v], [%+v]\n", string(message.Value), message)
+	}
+
 }

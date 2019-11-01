@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+	"time"
 )
 
 /*
@@ -22,6 +23,14 @@ func ProducerEnsureOrder() model.Option {
 // ProducerSetMessageKey set the key for each message
 func ProducerSetMessageKey(key string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ProducerMessageKey = key })
+}
+
+// ProducerSetReplyHandler collect reply message from consumer along with transmission related information.
+func ProducerCollectReplyMessage(retryHandler func(Message, error), timeout time.Duration) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) {
+		d.ProducerReplyHandler = func(message model.Message, err error) { retryHandler(APIMessageFromMessage(message), err) }
+		d.ProducerReplyTimeout = timeout
+	})
 }
 
 /*
@@ -56,7 +65,7 @@ func InitSetDefaultGroupID(defaultGroupID string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.DefaultGroupID = defaultGroupID })
 }
 
-// InitSetLogLevel set log level of log in diapatcher, available levels are debug, info, warn, error.
+// InitSetLogLevel set log level of log in dispatcher, available levels are debug, info, warn, error.
 func InitSetLogLevel(logLevel string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.LogLevel = logLevel })
 }

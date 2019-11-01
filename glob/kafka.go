@@ -6,6 +6,10 @@ func ErrTopic(topic string) string {
 	return topic + "_ERR"
 }
 
+func ReplyTopic(topic string) string {
+	return topic + "_Reply"
+}
+
 func TrimBytes(bytes []byte) string {
 	str := string(bytes)
 	if len(str) > 150 {
@@ -32,4 +36,8 @@ func AppendSuffix(str string, suffix string, ch string) string {
 		return str
 	}
 	return str + suffix
+}
+
+func GenDefaultGroupID() string {
+	return GetHashMacAddrs()
 }

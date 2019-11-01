@@ -138,16 +138,25 @@ func (s *topicService) create(topic string) (err error) {
 	}
 
 	// Send request to Broker
-	_, err = broker.CreateTopics(&request)
+	var res *sarama.CreateTopicsResponse
+	res, err = broker.CreateTopics(&request)
+	if res != nil && len(res.TopicErrors) > 0 {
+		for _, val := range res.TopicErrors {
+			if val.Err != sarama.ErrNoError && val.Err != sarama.ErrTopicAlreadyExists {
+				err = val.Err
+				break
+			}
+		}
+	}
 
 	// handle errors if any
 	if err != nil {
 		// log.Printf("%#v", &err)
-		err = errors.Wrap(err, "err creating topic")
+		err = errors.Wrapf(err, "err creating topic [%v]", topic)
 		core.Logger.Errorf(err.Error())
 		return
 	}
-	core.Logger.Debugf("Topic created: %v.", topic)
+	core.Logger.Debugf("Topic created: [%v].", topic)
 
 	// close connection
 	closingErr := broker.Close()
