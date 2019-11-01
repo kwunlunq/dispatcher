@@ -13,12 +13,11 @@ var (
 
 func main() {
 	_ = dispatcher.Init(brokers)
-	i := 1
-	for {
-		send(i)
-		//sendInRealWorld(i)
-		i++
+	for i := 1; i <= 2; i++ {
+		//send(i)
+		sendInRealWorld(i)
 	}
+	time.Sleep(time.Hour)
 }
 
 func send(i int) {

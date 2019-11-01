@@ -141,14 +141,6 @@ func makeErrCallback(producerErrHandler model.ProducerCustomerErrHandler) model.
 			core.Logger.Error("Error parsing consumer-err: ", string(value))
 			return nil
 		}
-		if item.Message == nil { // 向上相容新版錯誤回應
-			var newItem model.Message
-			_ = json.Unmarshal(value, &newItem)
-			item.ErrStr = newItem.ConsumerErrorStr
-			item.Message = &sarama.ConsumerMessage{
-				Value: newItem.Value,
-			}
-		}
 		producerErrHandler(item.Message.Value, errors.New(item.ErrStr))
 		return nil
 	}

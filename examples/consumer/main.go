@@ -11,7 +11,7 @@ import (
 
 var (
 	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	groupID = "kevin"
+	groupID = ""
 	topic   = "dispatcher.example.testing"
 	start   = time.Now()
 )
