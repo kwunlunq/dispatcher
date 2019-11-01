@@ -192,7 +192,7 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, ctx context.
 
 	started := make(chan struct{}, 1)
 	handler := consumerHandler{
-		pool:        WorkerPoolService.MakeWorkerPool(callback, asyncNum, true, ctx),
+		pool:        WorkerPoolService.MakeWorkerPool(ctx, asyncNum, callback, groupID),
 		startedChan: started,
 	}
 

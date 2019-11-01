@@ -27,18 +27,18 @@ type WorkerPool interface {
 }
 
 type workerPool struct {
+	ctx               context.Context
+	callback          model.MessageConsumerCallback
+	groupID           string
 	jobs              chan *sarama.ConsumerMessage
 	processedMessages chan *sarama.ConsumerMessage
 	errors            chan *model.Message
 	replies           chan *model.Message
-	callback          model.MessageConsumerCallback
-	isCollectResult   bool
-	ctx               context.Context
 }
 
-func (poolService workerPoolService) MakeWorkerPool(callback model.MessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) WorkerPool {
+func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) WorkerPool {
 
-	pool := poolService.new(callback, poolSize, isCollectResult, ctx)
+	pool := poolService.new(ctx, poolSize, callback, groupID)
 
 	for i := 0; i < poolSize; i++ {
 		go pool.newWorker(i)
@@ -50,7 +50,7 @@ func (poolService workerPoolService) MakeWorkerPool(callback model.MessageConsum
 	return pool
 }
 
-func (poolService workerPoolService) new(callback model.MessageConsumerCallback, poolSize int, isCollectResult bool, ctx context.Context) workerPool {
+func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) workerPool {
 	maxSize := 100000
 	return workerPool{
 		jobs:              make(chan *sarama.ConsumerMessage),
@@ -58,8 +58,8 @@ func (poolService workerPoolService) new(callback model.MessageConsumerCallback,
 		errors:            make(chan *model.Message, maxSize),
 		replies:           make(chan *model.Message, maxSize),
 		callback:          callback,
-		isCollectResult:   isCollectResult,
 		ctx:               ctx,
+		groupID:           groupID,
 	}
 }
 
@@ -137,9 +137,10 @@ func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Mess
 	message.Partition = saramaMsg.Partition
 	message.Topic = saramaMsg.Topic
 	// 加上時間戳
-	if message.ConsumerReceivedTime.IsZero() {
+	if message.ConsumerReceivedTime.IsZero() { // it's consumer consuming message
 		message.ConsumerReceivedTime = time.Now()
-	} else if message.ProducerReceivedTime.IsZero() {
+		message.ConsumerGroupID = p.groupID
+	} else if message.ProducerReceivedTime.IsZero() { // it's producer consuming message
 		message.ProducerReceivedTime = time.Now()
 	}
 	return

@@ -12,6 +12,7 @@ type Message struct {
 	Value                []byte
 	Partition            int32
 	Offset               int64
+	ConsumerGroupID      string
 	ConsumerErrorStr     string // Consumer執行callback時發生error後回傳的錯誤
 	ProducerSentTime     time.Time
 	ConsumerReceivedTime time.Time
