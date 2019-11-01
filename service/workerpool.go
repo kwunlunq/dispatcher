@@ -97,6 +97,7 @@ func (p workerPool) doJob(workerID string, job *sarama.ConsumerMessage) {
 
 	core.Logger.Debugf("(Worker[%v]) Starting work [%v-%v-%v/%v] ...", workerID, job.Topic, job.Partition, job.Offset, glob.TrimBytes(job.Value))
 
+	// 相容新版格式
 	var newFormatMsg model.Message
 	_ = json.Unmarshal(job.Value, &newFormatMsg)
 	if len(newFormatMsg.Value) > 0 {

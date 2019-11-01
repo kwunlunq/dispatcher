@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.10.13 (2019-11-1)
+
+Improvements:
+- 支援1.11版訊息傳輸格式(producer/consumer)
+
 ### Version 1.10.12 (2019-10-24)
 
 Bug Fixes:
