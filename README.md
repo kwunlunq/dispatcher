@@ -15,7 +15,10 @@ Windows環境需安裝 [GCC](./build/mingw-w64-install.exe) , Architecure選x86_
 dispatcher.Init(brokers, ...opts)
 ```
 - `brokers`: `[]string`, kafka機器ip清單, ex. ["1.0.0.1:000", "2.0.0.1:000"]
-- `opts`: 可選參數
+- `opts`:
+  - `InitSetKafkaConfig`: 指定各Kafka相關設定, 包含partition數量, replica數量, 訊息大小...等
+  - `InitSetDefaultGroupID`: 預設GroupID, 將用於producer & consumer 接收訊息時的群組編號, 未指定將設為hash過的mac address
+  - `InitSetLogLevel`: 指定log等級, 可指定 "info" (預設), "debug". 設為debug時將開啟sarama的log
 
 ### 傳送訊息
 
@@ -26,7 +29,9 @@ dispatcher.Send(topic, message, ...opts) error
 - `message`: `[]byte`, 要傳送的訊息
 - `opts`:
   - `ProducerEnsureOrder`: 確保接收時訊息有序, dispatcher會將message的key設為固定值(topic), 讓訊息進到同個partition, 未指定時隨機分配partition
-  - `ProducerSetMessageKey`: 使用者自訂每個訊息的key值, 採用順序: Key > EnsureOrder 
+  - `ProducerSetMessageKey`: 使用者自訂每個訊息的key值, 採用順序: Key > EnsureOrder
+  - `ProducerAddErrHandler`: 接收consumer的callback error
+  - `ProducerCollectReplyMessage`: 接收consumer的回條訊息, 包含訊息編號, 處理過程的時間戳, consumer group id等資訊. 等待將在達到指定的timeout後回傳error.
 
 ### 接收訊息
 
@@ -56,30 +61,4 @@ dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration,
 ### 可用選項
 
 各API提供可選設定做為非必要參數, 所有可用的選項參見 [options.go](./options.go)
-
-1. Init指定預設全域GroupID, 用於subscribe時的群組 及 send時的錯誤接收群組, 未指定時使用機器的 mac address
-```go
-dispatcher.InitSetDefaultGroupID(groupID)
-```
-`groupID`: `string`, 群組代號, 用以紀錄消費訊息的紀錄, 若其他機器設定相同groupID會組成群組, kafka在傳送訊息時僅送給group中的其中一人(監聽相同topic時)
-
-1. Subscriber以多執行續處理訊息
-```go
-dispatcher.Subscribe(topic, callback, dispatcher.ConsumerSetAsyncNum(5))
-```
-
-2. Subscriber只接收自己啟動後的新訊息, 不從未讀過的開始讀 (已有收過訊息紀錄時無效)
-```go
-dispatcher.Subscribe(topic, callback, dispatcher.ConsumerOmitOldMsg())
-``` 
-
-3. Sender接收Subscriber callback回傳的錯誤
-```go
-dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
-```
-
-4. Sender確保Subscriber收到訊息是和送出時的順序完全一致, 但會降低效能 (只使用一個partition)
-```go
-dispatcher.Send(topic, msg, dispatcher.ProducerEnsureOrder())
-```
 
