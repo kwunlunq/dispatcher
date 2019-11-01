@@ -102,7 +102,7 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 	message, err := p.parse(saramaMsg)
 	if err != nil {
 		err = errors.Wrapf(err, "error parsing message: %v", string(saramaMsg.Value))
-		//core.Logger.Error(err.Error())
+		core.Logger.Error(err.Error())
 		return
 	}
 
@@ -117,29 +117,25 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 	}
 }
 
+// parse 解析收到訊息, 目前因相容舊版訊息格式, 不會有error發生 (解析失敗時放進message.Value)
 func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Message, err error) {
-	err = json.Unmarshal(saramaMsg.Value, &message)
-	if err != nil {
-		return
-	}
+	jsonErr := json.Unmarshal(saramaMsg.Value, &message)
 
-	// TODO: 移除相容舊版訊息格式
-	if message.TaskID == "" {
-		// 解析失敗, 嘗試使用舊版格式 (可能為 model.ConsumerCallbackError 或 []byte)
-		// try parsing to model.ConsumerCallbackError
+	// TODO: 相容舊版訊息格式
+	if jsonErr != nil { // 舊版message格式: []byte
+		message.Value = saramaMsg.Value
+	} else if message.TaskID == "" { // 舊版error-message格式: model.ConsumerCallbackError
 		var tmp model.ConsumerCallbackError
-		err = json.Unmarshal(saramaMsg.Value, &tmp)
+		_ = json.Unmarshal(saramaMsg.Value, &tmp)
 		if tmp.ErrStr != "" {
 			message.ConsumerErrorStr = tmp.ErrStr
 			message.Value = tmp.Message.Value
-		} else {
-			// original message is []byte
-			message.Value = saramaMsg.Value
 		}
 	}
 
 	message.Offset = saramaMsg.Offset
 	message.Partition = saramaMsg.Partition
+	message.Topic = saramaMsg.Topic
 	// 加上時間戳
 	if message.ConsumerReceivedTime.IsZero() {
 		message.ConsumerReceivedTime = time.Now()

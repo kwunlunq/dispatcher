@@ -290,6 +290,7 @@ func (h *consumerHandler) markProcessedMessages(sess sarama.ConsumerGroupSession
 			if !ok {
 				return
 			}
+			core.Logger.Debugf("Message marked: %v: %v", result.Partition, result.Offset)
 			sess.MarkMessage(result, "")
 		case <-h.pool.Context().Done():
 			return

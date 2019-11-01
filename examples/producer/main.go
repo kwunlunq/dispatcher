@@ -7,12 +7,13 @@ import (
 )
 
 var (
-	brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	topic   = "dispatcher.example.testing"
+	_brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_topic   = "dispatcher.example.testing"
+	_groupID = ""
 )
 
 func main() {
-	_ = dispatcher.Init(brokers)
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID))
 	for i := 1; i <= 5; i++ {
 		//send(i)
 		sendInRealWorld(i)
@@ -22,7 +23,7 @@ func main() {
 
 func send(i int) {
 	msg := []byte(fmt.Sprintf("message-%v-%v", i, time.Now().Format("15:04:05.999")))
-	_ = dispatcher.Send(topic, msg)
+	_ = dispatcher.Send(_topic, msg)
 	fmt.Println("Message sent:", string(msg))
 }
 
@@ -35,7 +36,7 @@ func sendInRealWorld(i int) {
 
 	for {
 		err := dispatcher.Send(
-			topic,
+			_topic,
 			msg,
 			dispatcher.ProducerAddErrHandler(errorHandler),
 			dispatcher.ProducerCollectReplyMessage(replyHandler, collectReplyTimeout),
