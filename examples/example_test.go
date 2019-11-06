@@ -2,8 +2,6 @@ package main
 
 import (
 	"testing"
-
-	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
 )
 
 func TestIntegration(t *testing.T) {
@@ -20,16 +18,16 @@ func TestIntegration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotReceived, gotErrCount := Integration(tt.args.msgCount)
-			t.Logf("發送:%v  \t接收:%v  \t錯誤處理:%v", tt.args.msgCount, gotReceived, gotErrCount)
-			if gotReceived < tt.args.msgCount || gotErrCount < tt.args.msgCount {
+			gotReceived, gotErrCount, gotReplied := Integration(tt.args.msgCount)
+			t.Logf("發送:%v  \t接收:%v  \t錯誤處理:%v  \t收到回條:%v", tt.args.msgCount, gotReceived, gotErrCount, gotReplied)
+			if gotReceived < tt.args.msgCount || gotErrCount < tt.args.msgCount || gotReplied < tt.args.msgCount {
 				t.Log("FAIL!")
 				t.Fail()
 			}
 			t.Log("OK!")
 		})
 	}
-	service.TopicService.Remove("disp.testing", "disp.testing_ERR")
+	//_ = service.TopicService.Remove("dispatcher.example.testing", "dispatcher.example.testing_ERR", "dispatcher.example.testing_Reply")
 }
 
 func BenchmarkProducer(b *testing.B) {

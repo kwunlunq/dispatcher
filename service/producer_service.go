@@ -31,12 +31,13 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 		return model.ErrNotInitialized
 	}
 
-	// Send message
+	// Create task
 	dis := model.MakeDispatcher(opts)
 	task := model.NewTask(topic, value, dis)
-	err = p.send(&task.Message)
-	if err != nil {
-		return
+
+	// Listen replies from consumer
+	if dis.ProducerReplyHandler != nil {
+		go p.replyMessageListener(task)
 	}
 
 	// Listen errors from consumer
@@ -44,10 +45,12 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 		go p.consumerListener(glob.ErrTopic(topic), wrapProducerErrHandler(dis.ProducerErrHandler))
 	}
 
-	// Listen replies from consumer
-	if dis.ProducerReplyHandler != nil {
-		go p.replyMessageListener(task)
+	// Send message
+	err = p.send(&task.Message)
+	if err != nil {
+		return
 	}
+
 	return
 }
 
@@ -144,12 +147,25 @@ func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler)
 	return func(message model.Message) error {
 		defer func() {
 			if err := recover(); err != nil {
-				core.Logger.Errorf("Panic on producer err handler: %v", string(debug.Stack()))
+				core.Logger.Errorf("Panic on custom producer err handler: %v", string(debug.Stack()))
 			}
 		}()
 		producerErrHandler(message.Value, errors.New(message.ConsumerErrorStr))
 		return nil
 	}
+}
+
+// replyMessageListener 建立 & 執行 reply 任務, 並監控過期任務
+func (p *producerService) replyMessageListener(task model.Task) {
+	// Add task
+	p.replyTasks.Store(task.Message.TaskID, task)
+	core.Logger.Debug("Task added: ", task.Message.TaskID)
+
+	// Check and remove expired task (start only once)
+	go p.cleanerOnce.Do(func() { p.cleanExpiredTasks() })
+
+	// Start consuming reply messages
+	go p.consumerListener(glob.ReplyTopic(task.Message.Topic), p.handleReplyMessage())
 }
 
 // consumerListener 監聽來自consumer的訊息 (error & reply)
@@ -167,25 +183,13 @@ func (p *producerService) consumerListener(topic string, handler model.MessageCo
 	}
 }
 
-// replyMessageListener 建立 & 執行 reply 任務, 並監控過期任務
-func (p *producerService) replyMessageListener(task model.Task) {
-	// Add task
-	p.replyTasks.Store(task.Message.TaskID, task)
-
-	// Check and remove expired task (start only once)
-	go p.cleanerOnce.Do(func() { p.cleanExpiredTasks() })
-
-	// Start consuming reply messages
-	go p.consumerListener(glob.ReplyTopic(task.Message.Topic), p.handleReplyMessage())
-}
-
 // handleReplyMessage 執行handler, 移出tasks
 func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 	return func(message model.Message) error {
 		// Load task from cache by taskID to retrieve reply handler
 		taskI, ok := p.replyTasks.Load(message.TaskID)
 		if !ok {
-			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
+			core.Logger.Warnf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
 		task := taskI.(model.Task)
@@ -230,9 +234,10 @@ func (p *producerService) cleanExpiredTasks() func() {
 func (p *producerService) runReplyHandler(task model.Task, err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			core.Logger.Errorf("Panic on user reply handler", string(debug.Stack()))
+			core.Logger.Errorf("Panic on custom reply handler: %v", string(debug.Stack()))
 		}
 	}()
 	task.ReplyHandler(task.Message, err)
 	p.replyTasks.Delete(task.Message.TaskID)
+	core.Logger.Debug("Task removed: ", task.Message.TaskID)
 }

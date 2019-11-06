@@ -26,9 +26,9 @@ func ProducerSetMessageKey(key string) model.Option {
 }
 
 // ProducerSetReplyHandler collect reply message from consumer along with transmission related information.
-func ProducerCollectReplyMessage(retryHandler func(Message, error), timeout time.Duration) model.Option {
+func ProducerCollectReplyMessage(replyHandler func(Message, error), timeout time.Duration) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) {
-		d.ProducerReplyHandler = func(message model.Message, err error) { retryHandler(APIMessageFromMessage(message), err) }
+		d.ProducerReplyHandler = func(message model.Message, err error) { replyHandler(APIMessageFromMessage(message), err) }
 		d.ProducerReplyTimeout = timeout
 	})
 }

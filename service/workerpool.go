@@ -105,9 +105,11 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 		core.Logger.Error(err.Error())
 		return
 	}
+	core.Logger.Debugf("Message received: [TaskID: %v, Value: %v, Partition: %v, Offset: %v]", message.TaskID, string(message.Value), message.Partition, message.Offset)
 
 	// Send reply
 	if message.IsReplyMessage {
+		core.Logger.Debug("Sending reply: ", string(message.Value), "taskID: ", message.TaskID)
 		p.replies <- &message
 	}
 
