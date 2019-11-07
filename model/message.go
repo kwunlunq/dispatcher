@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"github.com/Shopify/sarama"
 	"time"
 )
@@ -32,4 +33,8 @@ func MakeMessageBySaramaMessage(s sarama.ConsumerMessage, consumeErrStr string) 
 		ConsumerErrorStr:     consumeErrStr,
 		ProducerReceivedTime: time.Now(),
 	}
+}
+
+func (m Message) Debug() string {
+	return fmt.Sprintf("[Topic: %v, Value: %v, TaskID: %v, Partition: %v, Offset: %v]", m.Topic, string(m.Value), m.TaskID, m.Partition, m.Offset)
 }

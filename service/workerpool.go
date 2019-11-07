@@ -32,8 +32,8 @@ type workerPool struct {
 	groupID           string
 	jobs              chan *sarama.ConsumerMessage
 	processedMessages chan *sarama.ConsumerMessage
-	errors            chan *model.Message
-	replies           chan *model.Message
+	errors            chan model.Message
+	replies           chan model.Message
 }
 
 func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) WorkerPool {
@@ -55,8 +55,8 @@ func (poolService workerPoolService) new(ctx context.Context, poolSize int, call
 	return workerPool{
 		jobs:              make(chan *sarama.ConsumerMessage),
 		processedMessages: make(chan *sarama.ConsumerMessage, maxSize),
-		errors:            make(chan *model.Message, maxSize),
-		replies:           make(chan *model.Message, maxSize),
+		errors:            make(chan model.Message, maxSize),
+		replies:           make(chan model.Message, maxSize),
 		callback:          callback,
 		ctx:               ctx,
 		groupID:           groupID,
@@ -105,12 +105,11 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 		core.Logger.Error(err.Error())
 		return
 	}
-	core.Logger.Debugf("Message received: [TaskID: %v, Value: %v, Partition: %v, Offset: %v]", message.TaskID, string(message.Value), message.Partition, message.Offset)
+	core.Logger.Debug("Message received: ", message.Debug())
 
 	// Send reply
 	if message.IsReplyMessage {
-		core.Logger.Debug("Sending reply: ", string(message.Value), "taskID: ", message.TaskID)
-		p.replies <- &message
+		p.replies <- message
 	}
 
 	// Process message
@@ -148,7 +147,7 @@ func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Mess
 	return
 }
 
-func (p workerPool) sendBack(messagesChan chan *model.Message, getTopic func(oriTopic string) string) {
+func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriTopic string) string) {
 	for message := range messagesChan {
 		// 僅回送一次
 		message.IsSendError = false
@@ -156,6 +155,7 @@ func (p workerPool) sendBack(messagesChan chan *model.Message, getTopic func(ori
 
 		// 發送訊息
 		message.Topic = getTopic(message.Topic)
+		core.Logger.Debugf("Sending back message: Topic [%v], Message [%v]", message.Topic, string(message.Value))
 		err := ProducerService.send(message)
 		if err != nil {
 			core.Logger.Error("Err sending back to producer:", err.Error())
@@ -181,7 +181,7 @@ func (p workerPool) processMessage(workerID string, message model.Message) {
 	// Send error message
 	if err != nil && (message.IsSendError || message.TaskID == "" /* TODO: 相容舊版 */) {
 		message.ConsumerErrorStr = err.Error()
-		p.errors <- &message
-		core.Logger.Debugf("(Worker[%v]) Error doing work [%v-%v-%v/%v]: %v", workerID, message.Topic, message.Partition, message.Offset, glob.TrimBytes(message.Value), err.Error())
+		p.errors <- message
+		core.Logger.Debugf("(Worker[%v]) Error handling message [%v-%v-%v/%v]: %v", workerID, message.Topic, message.Partition, message.Offset, glob.TrimBytes(message.Value), err.Error())
 	}
 }

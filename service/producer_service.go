@@ -46,7 +46,7 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 	}
 
 	// Send message
-	err = p.send(&task.Message)
+	err = p.send(task.Message)
 	if err != nil {
 		return
 	}
@@ -54,7 +54,7 @@ func (p *producerService) Send(topic string, value []byte, opts ...model.Option)
 	return
 }
 
-func (p *producerService) send(message *model.Message) (err error) {
+func (p *producerService) send(message model.Message) (err error) {
 
 	// Create topic
 	err = TopicService.Create(message.Topic)
@@ -73,7 +73,7 @@ func (p *producerService) send(message *model.Message) (err error) {
 	return
 }
 
-func (p *producerService) sendSaramaMessage(message *model.Message) (err error) {
+func (p *producerService) sendSaramaMessage(message model.Message) (err error) {
 	// Close producer if panic
 	defer func() {
 		if r := recover(); r != nil {

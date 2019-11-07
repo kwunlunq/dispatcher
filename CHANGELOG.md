@@ -3,11 +3,11 @@
 ### Version 1.11.1 (2019-11-4)
 
 Bug Fixes:
-- 修復可能遺失回條問題
+- 修復可能遺失回條或consumer error訊息問題
 
-### Version 1.11.0 (2019-11-1)
+## Version 1.11.0 (2019-11-1)
 
->**`重要` *此更新不影響原有接口, 但將會改變dispatcher傳送訊息的格式, 若consumer/producer無法同時更新到1.11.x, 需先將其中一個更新到1.10.13以相容新版訊息格式***
+>**❗ `重要` *此更新不影響原有接口, 但將會改變dispatcher傳送訊息的格式, 若consumer/producer無法同時更新到1.11.x, 需先將其中一個更新到1.10.13以相容新版訊息格式***
 
 Features:
 - 增加回條機制: Producer可指定接收consumer的回條訊息, 包含訊息編號, 處理過程的時間戳, consumer group id等資訊. 等待將在達到指定的timeout後回傳error.
