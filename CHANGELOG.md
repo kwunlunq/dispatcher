@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.11.2 (2019-11-22)
+
+Bug Fixes:
+- 修復新舊版producer/consumer可能收到value為空問題
+
 ### Version 1.11.1 (2019-11-4)
 
 Bug Fixes:

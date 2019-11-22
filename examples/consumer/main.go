@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	_brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_groupID  = ""
 	_topic    = "dispatcher.example.testing"
 	_start    = time.Now()

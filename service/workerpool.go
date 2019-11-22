@@ -120,19 +120,14 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
 // parse 解析收到訊息, 目前因相容舊版訊息格式, 不會有error發生 (解析失敗時放進message.Value)
 func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Message, err error) {
-	jsonErr := json.Unmarshal(saramaMsg.Value, &message)
+	err = json.Unmarshal(saramaMsg.Value, &message)
+	if err != nil {
+		core.Logger.Error("Err parsing json message: ", string(saramaMsg.Value))
+		return
+	}
 
 	// TODO: 相容舊版訊息格式
-	if jsonErr != nil { // 舊版message格式: []byte
-		message.Value = saramaMsg.Value
-	} else if message.TaskID == "" { // 舊版error-message格式: model.ConsumerCallbackError
-		var tmp model.ConsumerCallbackError
-		_ = json.Unmarshal(saramaMsg.Value, &tmp)
-		if tmp.ErrStr != "" {
-			message.ConsumerErrorStr = tmp.ErrStr
-			message.Value = tmp.Message.Value
-		}
-	}
+	p.parseCompatibleMessage(&message, saramaMsg.Value)
 
 	message.Offset = saramaMsg.Offset
 	message.Partition = saramaMsg.Partition
@@ -183,5 +178,20 @@ func (p workerPool) processMessage(workerID string, message model.Message) {
 		message.ConsumerErrorStr = err.Error()
 		p.errors <- message
 		core.Logger.Debugf("(Worker[%v]) Error handling message [%v-%v-%v/%v]: %v", workerID, message.Topic, message.Partition, message.Offset, glob.TrimBytes(message.Value), err.Error())
+	}
+}
+
+func (p workerPool) parseCompatibleMessage(message *model.Message, saramaMsgVal []byte) {
+	if message.TaskID == "" {
+		// 舊版error-message格式: model.ConsumerCallbackError
+		var tmp model.ConsumerCallbackError
+		_ = json.Unmarshal(saramaMsgVal, &tmp)
+		if tmp.ErrStr != "" {
+			message.ConsumerErrorStr = tmp.ErrStr
+			message.Value = tmp.Message.Value
+		} else {
+			// 舊版message格式: []byte
+			message.Value = saramaMsgVal
+		}
 	}
 }

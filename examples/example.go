@@ -83,7 +83,7 @@ func replyHandler(message dispatcher.Message, err error) {
 	if err == nil {
 		err = errors.New("")
 	}
-	fmt.Printf("Rep | %v/%v | %v | %v | %v | %v\n", atomic.LoadUint64(&replied), testCount, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err.Error())
+	fmt.Printf("Rep | %v/%v | %v | %v | %v | %v | %v\n", atomic.LoadUint64(&replied), testCount, message.TaskID, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err.Error())
 }
 
 func waitComplete() {
