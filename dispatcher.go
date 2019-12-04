@@ -22,7 +22,7 @@ func Subscribe(topic string, callback model.BytesConsumerCallback, opts ...model
 	if err != nil {
 		return
 	}
-	ctrl = &SubscriberCtrl{errors: c.ConsumeErrChan, cancelFunc: c.CancelFunc}
+	ctrl = &SubscriberCtrl{errors: c.ConsumeErrChan, cancelFunc: c.CancelConsume}
 	return
 }
 

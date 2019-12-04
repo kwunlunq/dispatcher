@@ -38,6 +38,7 @@ func (s *clientService) Get() (client sarama.Client, err error) {
 }
 
 func (s *clientService) create() (client sarama.Client, err error) {
+	// TODO: add timeout
 	client, err = sarama.NewClient(core.Config.Brokers, &core.SaramaConfig)
 
 	if err != nil {

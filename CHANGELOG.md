@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.11.3 (2019-12-4)
+
+Bug Fixes:
+- 修復關閉consumer可能鎖住問題
+
 ### Version 1.11.2 (2019-11-22)
 
 Bug Fixes:

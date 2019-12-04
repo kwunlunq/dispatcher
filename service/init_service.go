@@ -10,6 +10,6 @@ func Init(brokers []string, opts []model.Option) error {
 	core.InitLogger(dis.LogLevel, core.ProjectName)
 	core.InitConfig(brokers, dis.ToCoreConfig())
 	core.InitSaramaConfig(dis.ToSaramaConfig())
-	core.Logger.Infof("Dispatcher started with brokers: %v, groupID: %v, kafka: %+v", core.Config.Brokers, core.Config.DefaultGroupID, core.Config.KafkaConfig)
+	core.Logger.Infof("Dispatcher started with brokers: %v, defaultGroupID: %v, kafkaConfig: %+v", core.Config.Brokers, core.Config.DefaultGroupID, core.Config.KafkaConfig)
 	return nil
 }
