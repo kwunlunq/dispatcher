@@ -1,7 +1,7 @@
 package glob
 
 import (
-	"fmt"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"net"
 	"strings"
 )
@@ -9,7 +9,7 @@ import (
 func GetMacAddrs() (macAddrs []string) {
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Printf("fail to get net interfaces: %v", err)
+		core.Logger.Errorf("Failed to get mac address: %v", err)
 		return macAddrs
 	}
 
