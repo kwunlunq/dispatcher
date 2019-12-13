@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.11.5 (2019-12-13)
+
+Minor:
+- log sdk version
+
 ### Version 1.11.3 (2019-12-4)
 
 Bug Fixes:
