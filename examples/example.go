@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	testCount                         int
-	received, errCount, replied, sent uint64
-	brokers                           = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	groupID                           = ""
-	topic                             = "dispatcher.example.testing.kevin.2"
-	logLevel                          = "info"
-	showExampleLog                    = true
+	_testCount                            int
+	_received, _errCount, _replied, _sent uint64
+	_brokers                              = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_groupID                              = ""
+	_topic                                = "dispatcher.example.testing.kevin.2"
+	_logLevel                             = "info"
+	_showExampleLog                       = true
 	//wgSend, wgReceive, wgErr, wgReply sync.WaitGroup
 )
 
@@ -26,22 +26,22 @@ func main() {
 	Integration(2000)
 
 	time.Sleep(time.Second) // Wait for offsets to be marked
-	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * Err received: %v\n * Reply received: %v\n * Cost: %vs\n\n", testCount, sent, received, errCount, replied, int(time.Now().Sub(start).Seconds()))
+	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * Err received: %v\n * Reply received: %v\n * Cost: %vs\n\n", _testCount, _sent, _received, _errCount, _replied, int(time.Now().Sub(start).Seconds()))
 }
 
 // Integration 整合測試: 傳送 + 接收
 func Integration(msgCount int) (int, int, int) {
-	testCount = msgCount
-	sent, received, errCount, replied = 0, 0, 0, 0
+	_testCount = msgCount
+	_sent, _received, _errCount, _replied = 0, 0, 0, 0
 
-	_ = dispatcher.Init(brokers, dispatcher.InitSetLogLevel(logLevel), dispatcher.InitSetDefaultGroupID(groupID))
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetLogLevel(_logLevel), dispatcher.InitSetDefaultGroupID(_groupID))
 
-	go send(topic, msgCount)
+	go send(_topic, msgCount)
 
-	go consumeWithRetry(topic)
+	go consumeWithRetry(_topic)
 
 	waitComplete()
-	return int(received), int(errCount), int(replied)
+	return int(_received), int(_errCount), int(_replied)
 }
 
 // TODO: 測試consumer group rebalance場景
@@ -61,42 +61,42 @@ func send(topic string, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v", i, time.Now().Format("15:04.999")))
 		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
-		//_ = dispatcher.Send(topic, msg)
-		atomic.AddUint64(&sent, 1)
+		//_ = dispatcher.Send(_topic, msg)
+		atomic.AddUint64(&_sent, 1)
 	}
 }
 
 func msgHandler(value []byte) error {
-	atomic.AddUint64(&received, 1)
-	if showExampleLog {
-		fmt.Printf("MSG | %v/%v | %v \n", atomic.LoadUint64(&received), testCount, string(value))
+	atomic.AddUint64(&_received, 1)
+	if _showExampleLog {
+		fmt.Printf("MSG | %v/%v | %v \n", atomic.LoadUint64(&_received), _testCount, string(value))
 	}
 	return errors.New("錯誤: 測試錯誤, 訊息: " + string(value))
 }
 
 func errorHandler(value []byte, err error) {
-	atomic.AddUint64(&errCount, 1)
+	atomic.AddUint64(&_errCount, 1)
 	if err == nil {
 		err = errors.New("")
 	}
-	if showExampleLog {
-		fmt.Printf("ERR | %v/%v | %v | %v\n", atomic.LoadUint64(&errCount), testCount, err.Error(), string(value))
+	if _showExampleLog {
+		fmt.Printf("ERR | %v/%v | %v | %v\n", atomic.LoadUint64(&_errCount), _testCount, err.Error(), string(value))
 	}
 }
 
 func replyHandler(message dispatcher.Message, err error) {
-	atomic.AddUint64(&replied, 1)
+	atomic.AddUint64(&_replied, 1)
 	if err == nil {
 		err = errors.New("")
 	}
-	if showExampleLog {
-		fmt.Printf("Rep | %v/%v | %v | %v | %v | %v | %v\n", atomic.LoadUint64(&replied), testCount, message.TaskID, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err.Error())
+	if _showExampleLog {
+		fmt.Printf("Rep | %v/%v | %v | %v | %v | %v | %v\n", atomic.LoadUint64(&_replied), _testCount, message.TaskID, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err.Error())
 	}
 }
 
 func waitComplete() {
 	for {
-		if sent >= uint64(testCount) && errCount >= uint64(testCount) && replied >= uint64(testCount) {
+		if _sent >= uint64(_testCount) && _errCount >= uint64(_testCount) && _replied >= uint64(_testCount) {
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
