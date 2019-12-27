@@ -23,7 +23,7 @@ func main() {
 
 	start := time.Now()
 
-	Integration(2000)
+	Integration(500)
 
 	time.Sleep(time.Second) // Wait for offsets to be marked
 	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * Err received: %v\n * Reply received: %v\n * Cost: %vs\n\n", _testCount, _sent, _received, _errCount, _replied, int(time.Now().Sub(start).Seconds()))
@@ -60,7 +60,8 @@ func consumeWithRetry(topic string) {
 func send(topic string, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v", i, time.Now().Format("15:04.999")))
-		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
+		//_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
+		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
 		//_ = dispatcher.Send(_topic, msg)
 		atomic.AddUint64(&_sent, 1)
 	}
@@ -87,10 +88,10 @@ func errorHandler(value []byte, err error) {
 func replyHandler(message dispatcher.Message, err error) {
 	atomic.AddUint64(&_replied, 1)
 	if err == nil {
-		err = errors.New("")
+		fmt.Println("Err receiving reply: ", err)
 	}
 	if _showExampleLog {
-		fmt.Printf("Rep | %v/%v | %v | %v | %v | %v | %v\n", atomic.LoadUint64(&_replied), _testCount, message.TaskID, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err.Error())
+		fmt.Printf("Rep | %v/%v | %v | %v | %v | %v | %v\n", atomic.LoadUint64(&_replied), _testCount, message.TaskID, message.ConsumerGroupID, message.ConsumerReceivedTime, string(message.Value), err)
 	}
 }
 

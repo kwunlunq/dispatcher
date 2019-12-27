@@ -23,7 +23,11 @@ type TaskHandler struct {
 
 // NewTask 利用 topic, message, dispatcher設定等 包裝成dispatcher用的task物件
 func NewTask(topic string, message []byte, dis Dispatcher) (task Task) {
-	var messageKey string // TODO: 未來 message key 可由客戶端決定
+	var messageKey string
+	var expiredTimeNano int64
+	if dis.ProducerReplyTimeout > 0 {
+		expiredTimeNano = time.Now().Add(dis.ProducerReplyTimeout).UnixNano()
+	}
 	if dis.ProducerEnsureOrder {
 		messageKey = topic
 	}
@@ -43,7 +47,7 @@ func NewTask(topic string, message []byte, dis Dispatcher) (task Task) {
 		},
 		TaskInfo: TaskInfo{
 			CreatedTime:     time.Now(),
-			ExpiredTimeNano: time.Now().Add(dis.ProducerReplyTimeout).UnixNano(),
+			ExpiredTimeNano: expiredTimeNano,
 		},
 		TaskHandler: TaskHandler{
 			ReplyHandler: func(message Message, err error) {

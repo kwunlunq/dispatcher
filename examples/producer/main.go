@@ -32,7 +32,7 @@ func sendInRealWorld(i int) {
 	failCount := 0
 	failRetryLimit := 5
 	retryDuration := 3 * time.Second
-	collectReplyTimeout := 60 * time.Second
+	collectReplyTimeout := 0 * time.Second
 
 	for {
 		err := dispatcher.Send(
@@ -66,10 +66,11 @@ func errorHandler(value []byte, err error) {
 }
 
 func replyHandler(message dispatcher.Message, err error) {
+	now := time.Now().Format("15:04.000")
 	if err != nil {
-		fmt.Printf("Handle reply from consumer: err: %v, message: [%+v]\n", err.Error(), message)
+		fmt.Printf("Handle reply from consumer: err: %v, message: [%v], receivedAt: [%v]\n", err.Error(), string(message.Value), now)
 	} else {
-		fmt.Printf("Handle reply from consumer: [%v], [%+v]\n", string(message.Value), message)
+		fmt.Printf("Handle reply from consumer: message: [%v], receivedAt: [%v]\n", string(message.Value), now)
 	}
 
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.11.6 (2019-12-27)
+
+Improvements:
+- Producer接收回條時, 若timeout設為0 (dispatcher.NoTimeout), 則不會設定timeout, 持續接收回條 及 執行handler
+
 ### Version 1.11.5 (2019-12-13)
 
 Minor:

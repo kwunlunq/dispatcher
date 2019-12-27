@@ -189,7 +189,7 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 		// Load task from cache by taskID to retrieve reply handler
 		taskI, ok := p.replyTasks.Load(message.TaskID)
 		if !ok {
-			core.Logger.Warnf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
+			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
 		task := taskI.(model.Task)
@@ -206,7 +206,7 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 func (p *producerService) cleanExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
-		//core.Logger.Debug("正在檢查過期tasks...")
+		core.Logger.Debug("正在檢查過期tasks...")
 		now := time.Now().UnixNano()
 		deletedCount := 0
 		count := 0
@@ -216,13 +216,13 @@ func (p *producerService) cleanExpiredTasks() func() {
 			if !ok {
 				return true
 			}
-			if task.ExpiredTimeNano >= 0 && now > task.ExpiredTimeNano {
+			if task.ExpiredTimeNano > 0 && now > task.ExpiredTimeNano {
 				p.runReplyHandler(task, model.ErrTimeout)
 				deletedCount++
 			}
 			return true
 		})
-		//core.Logger.Debugf("檢查完畢: 總共%d筆, 刪除%d筆", count, deletedCount)
+		core.Logger.Debugf("檢查完畢: 總共%d筆, 刪除%d筆", count, deletedCount)
 		if deletedCount > 0 {
 			core.Logger.Debugf("刪除過期的reply任務: %d筆, 總共 %d筆", deletedCount, count)
 		}
@@ -234,10 +234,12 @@ func (p *producerService) cleanExpiredTasks() func() {
 func (p *producerService) runReplyHandler(task model.Task, err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			core.Logger.Errorf("Panic on custom reply handler: %v", string(debug.Stack()))
+			core.Logger.Errorf("Panic on custom reply handler: %v\nsStacktrace:\n%v", err, string(debug.Stack()))
 		}
 	}()
 	task.ReplyHandler(task.Message, err)
-	p.replyTasks.Delete(task.Message.TaskID)
+	if task.ExpiredTimeNano > 0 {
+		p.replyTasks.Delete(task.Message.TaskID)
+	}
 	core.Logger.Debug("Task removed: ", task.Message.TaskID)
 }
