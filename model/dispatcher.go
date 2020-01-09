@@ -19,15 +19,17 @@ type Dispatcher struct {
 
 	// Producer options
 	ProducerErrHandler   ProducerCustomerErrHandler // handle error from consumer
-	ProducerEnsureOrder  bool                       // promise meesges of the topic in order, automatically gen msg's key if enable
+	ProducerEnsureOrder  bool                       // promise messages of the topic in order, automatically gen msg's key if enable
 	ProducerMessageKey   string
 	ProducerReplyHandler func(Message, error)
 	ProducerReplyTimeout time.Duration
 
 	// Consumer options
-	ConsumerAsyncNum   int  // num of gorutine to process msg
-	ConsumerOmitOldMsg bool // set kafka to OffsetNewest if enable
-	ConsumerGroupID    string
+	ConsumerAsyncNum         int  // num of goroutine to process msg
+	ConsumerOmitOldMsg       bool // set kafka to OffsetNewest if enable
+	ConsumerGroupID          string
+	ConsumerLagCountHandler  func(lagCount int)
+	ConsumerLagCountInterval time.Duration
 }
 
 func MakeDispatcher(opts []Option) Dispatcher {
@@ -39,6 +41,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(&d.KafkaConfig, "MinInsyncReplicas", 3)
 	glob.SetIfZero(d, "DefaultGroupID", glob.GenDefaultGroupID())
 	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
+	glob.SetIfZero(d, "ConsumerLagCountInterval", int64(time.Duration(10*time.Second)))
 	return *d
 }
 func (d Dispatcher) ToCoreConfig() core.CoreConfig {
@@ -48,44 +51,44 @@ func (d Dispatcher) ToCoreConfig() core.CoreConfig {
 	}
 }
 
-func (d Dispatcher) ToSaramaConfig() *sarama.Config {
-	tmpC := sarama.NewConfig()
-	tmpC.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
+func (d Dispatcher) ToSaramaConfig() (config *sarama.Config) {
+	config = sarama.NewConfig()
+	config.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 
 	// TODO: 釋出所有timeout設定值
 
 	//timeout := d.KafkaConfig.Timeout
 
 	// Net
-	//tmpC.Net.DialTimeout = timeout  // default 30s
+	//config.Net.DialTimeout = timeout  // default 30s
 
 	// Producer
-	tmpC.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	tmpC.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-	tmpC.Producer.Return.Successes = true          // Receive success msg
-	tmpC.Producer.MaxMessageBytes = d.KafkaConfig.MsgMaxBytes
-	tmpC.Producer.Timeout = 30 * time.Second // Default 10s
-	//tmpC.Producer.Compression
-	//tmpC.Producer.CompressionLevel
+	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+	config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+	config.Producer.Return.Successes = true          // Receive success msg
+	config.Producer.MaxMessageBytes = d.KafkaConfig.MsgMaxBytes
+	config.Producer.Timeout = 30 * time.Second // Default 10s
+	config.Producer.Compression = sarama.CompressionLZ4
+	//config.Producer.CompressionLevel = 6
 
 	// Consumer
-	tmpC.Consumer.Return.Errors = true
-	tmpC.Consumer.Offsets.Initial = sarama.OffsetOldest    // OffsetNewest,Oldest
-	tmpC.Consumer.Group.Session.Timeout = 30 * time.Second // Default 10s
-	//tmpC.Consumer.Group.Heartbeat = timeout              // Default 3s, should be set to lower than 1/3 of Consumer.Group.Session.Timeout
-	//tmpC.Net.DialTimeout = timeout  // default 30s
-	//tmpC.Net.ReadTimeout = timeout  // default 30s
-	//tmpC.Net.WriteTimeout = timeout // default 30s
+	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest    // OffsetNewest,Oldest
+	config.Consumer.Group.Session.Timeout = 30 * time.Second // Default 10s
+	//config.Consumer.Group.Heartbeat = timeout              // Default 3s, should be set to lower than 1/3 of Consumer.Group.Session.Timeout
+	//config.Net.DialTimeout = timeout  // default 30s
+	//config.Net.ReadTimeout = timeout  // default 30s
+	//config.Net.WriteTimeout = timeout // default 30s
 
 	// TODO: 支援TLS
 	// TLS
 	// tlsConfig := createTlsConfiguration()
 	// if tlsConfig != nil {
-	// 	tmpC.Net.TLS.CoreConfig = tlsConfig
-	// 	tmpC.Net.TLS.Enable = true
+	// 	config.Net.TLS.CoreConfig = tlsConfig
+	// 	config.Net.TLS.Enable = true
 	// }
 
-	tmpC.ClientID = "dispatcher"
+	config.ClientID = "dispatcher"
 
 	// Switch on sarama log if needed
 	if d.LogLevel == "debug" {
@@ -93,7 +96,7 @@ func (d Dispatcher) ToSaramaConfig() *sarama.Config {
 	}
 	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
-	return tmpC
+	return config
 }
 
 type Option interface {

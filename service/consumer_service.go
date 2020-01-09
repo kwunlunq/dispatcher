@@ -32,17 +32,24 @@ func (c *consumerService) SubscribeWithMessageCallback(topic string, callback mo
 		return
 	}
 	dis := model.MakeDispatcher(opts)
-	consumer, err = c.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg)
+
+	// Subscribe
+	consumer, err = c.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg, dis.ConsumerLagCountHandler, dis.ConsumerLagCountInterval)
 	return
 }
 
-func (c *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool) (consumer *Consumer, err error) {
+func (c *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool, lagCountHandler func(lagCount int), lagCountInterval time.Duration) (consumer *Consumer, err error) {
 
 	// Create consumer
-	consumer, err = c.newConsumer(topic, offsetOldest, groupID, callback, asyncNum)
+	consumer, err = c.newConsumer(topic, offsetOldest, groupID, callback, asyncNum, lagCountHandler, lagCountInterval)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
 		return
+	}
+
+	// Monitor lag count
+	if consumer.LagCountHandler != nil {
+		go consumer.monitorLagCount()
 	}
 
 	// Consume
@@ -50,11 +57,13 @@ func (c *consumerService) subscribe(topic string, groupID string, callback model
 		var consumeErr error
 		select {
 		case consumeErr = <-consumer.consume():
+			consumer.CancelConsume()
 		case consumeErr = <-consumer.saramaConsumer.Errors():
+			consumer.CancelConsume()
 		case <-consumer.ctx.Done():
 			consumeErr = model.ErrConsumerStoppedManually
 		}
-		core.Logger.Info("Consumer stopped due to err: ", consumeErr)
+		core.Logger.Debug("Consumer stopped due to err: ", consumeErr)
 		consumer.close(consumeErr)
 	}()
 
@@ -94,7 +103,7 @@ func (c *Consumer) consume() (errChan chan error) {
 	return
 }
 
-func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int) (dispatcherConsumer *Consumer, err error) {
+func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, lagCountHandler func(lagCount int), lagCountInterval time.Duration) (dispatcherConsumer *Consumer, err error) {
 
 	// Create topic
 	err = c.createTopic(topic)
@@ -115,7 +124,7 @@ func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID s
 	}
 
 	// Wrap into dispatcher consumer
-	dispatcherConsumer = newConsumer(group, topic, groupID, asyncNum, callback)
+	dispatcherConsumer = newConsumer(group, topic, groupID, asyncNum, callback, lagCountHandler, lagCountInterval)
 	return
 }
 
@@ -190,6 +199,8 @@ type Consumer struct {
 	ConsumeErrChan   chan error
 	CancelConsume    context.CancelFunc
 	CancelWorkerPool context.CancelFunc
+	LagCountHandler  func(lagCount int)
+	LagCountInterval time.Duration
 
 	ctx                      context.Context
 	closeOnce                sync.Once
@@ -198,7 +209,7 @@ type Consumer struct {
 	saramaConsumerCancelFunc context.CancelFunc
 }
 
-func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback) *Consumer {
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, lagCountHandler func(lagCount int), lagCountInterval time.Duration) *Consumer {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -221,15 +232,19 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int
 		CancelWorkerPool: wpCancel,
 		ctx:              ctx,
 		saramaConsumer:   group,
+		LagCountHandler:  lagCountHandler,
+		LagCountInterval: lagCountInterval,
 	}
 }
 
 // close 關閉subscriber, 清除相關資源
 func (c *Consumer) close(err error) {
-	core.Logger.Infof("Closing consumer [%v] to [%v] due to error: %v", c.GroupID, c.Topic, err)
+	core.Logger.Debugf("Closing consumer [%v] of topic [%v] due to error: %v", c.GroupID, c.Topic, err)
 	c.closeOnce.Do(func() {
 
-		core.Logger.Infof("(Once) Closing consumer [%v] to [%v] due to error: %v", c.GroupID, c.Topic, err)
+		err = errors.Wrap(err, "err consumer closed")
+
+		core.Logger.Debugf("(Once) Closing consumer [%v] of topic [%v] due to error: %v", c.GroupID, c.Topic, err)
 
 		// Close sarama consumer
 		c.closeSaramaConsumer()
@@ -249,7 +264,7 @@ func (c *Consumer) close(err error) {
 		}
 		close(c.ConsumeErrChan)
 
-		core.Logger.Infof("Consumer closed: [%v], topic [%v], groupID [%v]", err, c.Topic, c.GroupID)
+		core.Logger.Debugf("Consumer closed: [%v], topic [%v], groupID [%v]", err, c.Topic, c.GroupID)
 	})
 	return
 }
@@ -260,14 +275,29 @@ func (c *Consumer) closeSaramaConsumer() {
 	}
 	err := c.saramaConsumer.Close()
 	if err != nil {
-		core.Logger.Errorf("Error closing consumer of topic [%v], groupID [%v]", c.Topic, c.GroupID)
+		core.Logger.Errorf("Error closing consumer of topic [%v], groupID [%v], err [%v]", c.Topic, c.GroupID, err)
+	}
+}
+
+func (c *Consumer) monitorLagCount() {
+	ticker := time.NewTicker(c.LagCountInterval)
+	for {
+		select {
+		case <-ticker.C:
+			var lagCount int
+			// Get lag count from API
+			c.LagCountHandler(lagCount)
+			core.Logger.Infof("Lag count: %v, topic: %v, consumerID: %v\n", lagCount, c.Topic, c.GroupID)
+		case <-c.ctx.Done():
+			return
+		}
 	}
 }
 
 type consumerHandler struct {
 	pool        WorkerPool
 	startedChan chan struct{}
-	once        sync.Once
+	startedOnce sync.Once
 }
 
 func (h *consumerHandler) Setup(_ sarama.ConsumerGroupSession) error {
@@ -310,7 +340,7 @@ func (h *consumerHandler) markProcessedMessages(sess sarama.ConsumerGroupSession
 }
 
 func (h *consumerHandler) started() {
-	h.once.Do(func() {
+	h.startedOnce.Do(func() {
 		h.startedChan <- struct{}{}
 	})
 }

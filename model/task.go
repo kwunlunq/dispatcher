@@ -2,13 +2,12 @@ package model
 
 import (
 	"github.com/google/uuid"
-	"sync"
 	"time"
 )
 
 type Task struct {
 	TaskInfo
-	TaskHandler
+	Replier
 	Message Message
 }
 
@@ -17,9 +16,33 @@ type TaskInfo struct {
 	ExpiredTimeNano int64
 }
 
-type TaskHandler struct {
-	ReplyHandler func(message Message, err error)
+type Replier struct {
+	Handler    func(message Message, err error)
+	IsExecuted bool
+	//Locker           *sync.RWMutex
+	//ExecutedGroupIDs map[string]struct{}
 }
+
+// TODO: 待整理
+func (r Replier) HandleMessage(groupID string, message Message, err error) {
+	//if r.IsGroupIDExecuted(groupID) {
+	//core.Logger.Infof("GroupID executed: message: [%v], groupID: [%v]", string(message.Value), groupID)
+	//return
+	//}
+	r.IsExecuted = true
+	r.Handler(message, err)
+	//r.ExecutedGroupIDs[groupID] = struct{}{}
+}
+
+//func (r Replier) IsGroupIDExecuted(groupID string) (executed bool) {
+//	_, executed = r.ExecutedGroupIDs[groupID]
+//	return
+//}
+
+//func (r Replier) IsExecuted() (executed bool) {
+//	executed = len(r.ExecutedGroupIDs) > 0
+//	return
+//}
 
 // NewTask 利用 topic, message, dispatcher設定等 包裝成dispatcher用的task物件
 func NewTask(topic string, message []byte, dis Dispatcher) (task Task) {
@@ -34,7 +57,6 @@ func NewTask(topic string, message []byte, dis Dispatcher) (task Task) {
 	if dis.ProducerMessageKey != "" {
 		messageKey = dis.ProducerMessageKey
 	}
-	var onceReplyHandler sync.Once
 	task = Task{
 		Message: Message{
 			TaskID:           uuid.New().String(),
@@ -49,10 +71,12 @@ func NewTask(topic string, message []byte, dis Dispatcher) (task Task) {
 			CreatedTime:     time.Now(),
 			ExpiredTimeNano: expiredTimeNano,
 		},
-		TaskHandler: TaskHandler{
-			ReplyHandler: func(message Message, err error) {
-				onceReplyHandler.Do(func() { dis.ProducerReplyHandler(message, err) })
+		Replier: Replier{
+			Handler: func(message Message, err error) {
+				dis.ProducerReplyHandler(message, err)
 			},
+			//ExecutedGroupIDs: map[string]struct{}{},
+			//Locker:           &sync.RWMutex{},
 		},
 	}
 	return

@@ -93,7 +93,7 @@ func (p workerPool) newWorker(id int) {
 
 func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
-	core.Logger.Debugf("(Worker[%v]) Starting work [%v-%v-%v/%v] ...", workerID, saramaMsg.Topic, saramaMsg.Partition, saramaMsg.Offset, glob.TrimBytes(saramaMsg.Value))
+	core.Logger.Infof("(Worker[%v]) Received message from topic: [%v, %v-%v], msg: %v", workerID, saramaMsg.Topic, saramaMsg.Partition, saramaMsg.Offset, glob.TrimBytes(saramaMsg.Value))
 
 	// Mark offset after message processed / any error occurs
 	defer func() { p.processedMessages <- saramaMsg }()
@@ -150,8 +150,8 @@ func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriT
 
 		// 發送訊息
 		message.Topic = getTopic(message.Topic)
-		core.Logger.Debugf("Sending back message: Topic [%v], Message [%v]", message.Topic, string(message.Value))
 		err := ProducerService.send(message)
+		core.Logger.Infof("Message sent back: Topic [%v], Message [%v]", message.Topic, string(message.Value))
 		if err != nil {
 			core.Logger.Error("Err sending back to producer:", err.Error())
 		}

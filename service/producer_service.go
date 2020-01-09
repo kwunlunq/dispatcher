@@ -20,10 +20,9 @@ import (
 var ProducerService = &producerService{lock: &sync.Mutex{}}
 
 type producerService struct {
-	producer    sarama.AsyncProducer
-	lock        *sync.Mutex
-	replyTasks  sync.Map
-	cleanerOnce sync.Once
+	producer   sarama.AsyncProducer
+	lock       *sync.Mutex
+	replyTasks sync.Map
 }
 
 func (p *producerService) Send(topic string, value []byte, opts ...model.Option) (err error) {
@@ -161,9 +160,6 @@ func (p *producerService) replyMessageListener(task model.Task) {
 	p.replyTasks.Store(task.Message.TaskID, task)
 	core.Logger.Debug("Task added: ", task.Message.TaskID)
 
-	// Check and remove expired task (start only once)
-	go p.cleanerOnce.Do(func() { p.cleanExpiredTasks() })
-
 	// Start consuming reply messages
 	go p.consumerListener(glob.ReplyTopic(task.Message.Topic), p.handleReplyMessage())
 }
@@ -186,10 +182,11 @@ func (p *producerService) consumerListener(topic string, handler model.MessageCo
 // handleReplyMessage 執行handler, 移出tasks
 func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 	return func(message model.Message) error {
+		core.Logger.Debugf("Producer received reply message: [%v]\n", message.Value)
 		// Load task from cache by taskID to retrieve reply handler
 		taskI, ok := p.replyTasks.Load(message.TaskID)
 		if !ok {
-			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
+			core.Logger.Infof("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
 		task := taskI.(model.Task)
@@ -202,8 +199,8 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 	}
 }
 
-// cleanExpiredTasks 每5秒鐘檢查一次, 移除超時的任務(時間為使用者自訂)
-func (p *producerService) cleanExpiredTasks() func() {
+// scheduleDeleteExpiredTasks 每5秒鐘檢查一次, 移除超時(使用者指定時間)的任務
+func (p *producerService) scheduleDeleteExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
 		core.Logger.Debug("正在檢查過期tasks...")
@@ -216,7 +213,7 @@ func (p *producerService) cleanExpiredTasks() func() {
 			if !ok {
 				return true
 			}
-			if task.ExpiredTimeNano > 0 && now > task.ExpiredTimeNano {
+			if task.ExpiredTimeNano > 0 && now > task.ExpiredTimeNano && !task.Replier.IsExecuted {
 				p.runReplyHandler(task, model.ErrTimeout)
 				deletedCount++
 			}
@@ -237,9 +234,10 @@ func (p *producerService) runReplyHandler(task model.Task, err error) {
 			core.Logger.Errorf("Panic on custom reply handler: %v\nsStacktrace:\n%v", err, string(debug.Stack()))
 		}
 	}()
-	task.ReplyHandler(task.Message, err)
+	core.Logger.Infof("Executing reply handler: %v", string(task.Message.Value))
+	task.Replier.HandleMessage(task.Message.ConsumerGroupID, task.Message, err)
 	if task.ExpiredTimeNano > 0 {
 		p.replyTasks.Delete(task.Message.TaskID)
+		core.Logger.Debug("Task removed: ", task.Message.TaskID)
 	}
-	core.Logger.Debug("Task removed: ", task.Message.TaskID)
 }

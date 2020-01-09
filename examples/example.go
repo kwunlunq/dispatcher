@@ -13,9 +13,10 @@ var (
 	_received, _errCount, _replied, _sent uint64
 	_brokers                              = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_groupID                              = ""
-	_topic                                = "dispatcher.example.testing.kevin.2"
+	_topic                                = "dispatcher.example.testing.kevin"
 	_logLevel                             = "info"
 	_showExampleLog                       = true
+	_messageCount                         = 600
 	//wgSend, wgReceive, wgErr, wgReply sync.WaitGroup
 )
 
@@ -23,7 +24,7 @@ func main() {
 
 	start := time.Now()
 
-	Integration(500)
+	Integration(_messageCount)
 
 	time.Sleep(time.Second) // Wait for offsets to be marked
 	fmt.Printf("\n *** Summary ***\n * Test-Count: %v\n * Sent: %v\n * Received: %v\n * Err received: %v\n * Reply received: %v\n * Cost: %vs\n\n", _testCount, _sent, _received, _errCount, _replied, int(time.Now().Sub(start).Seconds()))
@@ -63,6 +64,9 @@ func send(topic string, msgCount int) {
 		//_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
 		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
 		//_ = dispatcher.Send(_topic, msg)
+		if _showExampleLog {
+			fmt.Printf("Sent | %v\n", string(msg))
+		}
 		atomic.AddUint64(&_sent, 1)
 	}
 }
@@ -87,7 +91,7 @@ func errorHandler(value []byte, err error) {
 
 func replyHandler(message dispatcher.Message, err error) {
 	atomic.AddUint64(&_replied, 1)
-	if err == nil {
+	if err != nil {
 		fmt.Println("Err receiving reply: ", err)
 	}
 	if _showExampleLog {

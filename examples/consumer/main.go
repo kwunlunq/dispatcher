@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	_brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_groupID  = ""
 	_topic    = "dispatcher.example.testing"
 	_start    = time.Now()
@@ -98,7 +98,7 @@ func consumeWithRetry() {
 	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID), dispatcher.InitSetLogLevel(_logLevel))
 
 	failRetryLimit := 5
-	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
+	getRetryDuration := func(failCount int) time.Duration { return 5 * time.Second }
 
 	// Subscribe with retry
 	err := dispatcher.SubscribeWithRetry(_topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))

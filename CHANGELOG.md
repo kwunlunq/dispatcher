@@ -1,5 +1,14 @@
 # Changelog
 
+### Version 1.12.0
+
+Features:
+- Producer增加參數: 監控consumer lag狀況
+
+Improvements:
+- 訊息預設使用LZ4方式壓縮
+- 移除once, 嘗試修復goroutine飆升
+
 ### Version 1.11.6 (2019-12-27)
 
 Improvements:

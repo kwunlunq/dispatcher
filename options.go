@@ -37,7 +37,7 @@ func ProducerCollectReplyMessage(replyHandler func(Message, error), timeout time
  * Consumer Options
  */
 
-// ConsumerSetAsyncNum set gorutine num to process messages on subscribing.
+// ConsumerSetAsyncNum set goroutine num to process messages on subscribing.
 func ConsumerSetAsyncNum(num int) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ConsumerAsyncNum = num })
 }
@@ -50,6 +50,14 @@ func ConsumerOmitOldMsg() model.Option {
 // ConsumerSetGroupID set the GroupID, overriding the ont set in Init.
 func ConsumerSetGroupID(groupID string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.ConsumerGroupID = groupID })
+}
+
+// ConsumerMonitorLagCount monitor messages' lag status of the topic subscribing
+func ConsumerMonitorLagCount(handler func(lagCount int), refreshInterval time.Duration) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) {
+		d.ConsumerLagCountHandler = handler
+		d.ConsumerLagCountInterval = refreshInterval
+	})
 }
 
 /*
