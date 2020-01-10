@@ -1,13 +1,17 @@
 # Changelog
 
-### Version 1.12.0
+### Version 1.12.0 (developing)
 
 Features:
 - Producer增加參數: 監控consumer lag狀況
 
 Improvements:
 - 訊息預設使用LZ4方式壓縮
-- 移除once, 嘗試修復goroutine飆升
+
+### Version 1.11.7 (2020-01-10)
+
+Bug Fixes:
+- 修復goroutine飆升(移除once相關程式)
 
 ### Version 1.11.6 (2019-12-27)
 
