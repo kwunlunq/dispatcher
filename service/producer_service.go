@@ -186,7 +186,7 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 		// Load task from cache by taskID to retrieve reply handler
 		taskI, ok := p.replyTasks.Load(message.TaskID)
 		if !ok {
-			core.Logger.Infof("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
+			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
 		task := taskI.(model.Task)
@@ -234,7 +234,7 @@ func (p *producerService) runReplyHandler(task model.Task, err error) {
 			core.Logger.Errorf("Panic on custom reply handler: %v\nsStacktrace:\n%v", err, string(debug.Stack()))
 		}
 	}()
-	core.Logger.Infof("Executing reply handler: %v", string(task.Message.Value))
+	core.Logger.Debugf("Executing reply handler: %v", string(task.Message.Value))
 	task.Replier.HandleMessage(task.Message.ConsumerGroupID, task.Message, err)
 	if task.ExpiredTimeNano > 0 {
 		p.replyTasks.Delete(task.Message.TaskID)
