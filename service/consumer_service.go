@@ -105,26 +105,26 @@ func (c *Consumer) consume() (errChan chan error) {
 
 func (c *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, lagCountHandler func(lagCount int), lagCountInterval time.Duration) (dispatcherConsumer *Consumer, err error) {
 
+	// Create consumer group for each topic
+	formattedGroupID := c.formatGroupID(topic, groupID)
+
 	// Create topic
-	err = c.createTopic(topic)
+	err = c.createTopic(topic, formattedGroupID)
 	if err != nil {
 		return
 	}
 
-	// Create consumer group for each topic
-	groupID = c.getValidGroupID(topic, groupID)
-
 	// Create sarama consumer
 	var group sarama.ConsumerGroup
-	group, err = c.newSaramaConsumer(topic, offsetOldest, groupID)
+	group, err = c.newSaramaConsumer(topic, offsetOldest, formattedGroupID)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating sarama Consumer of Topic [%v]", topic)
-		c.removeSubscribingTopic(topic)
+		c.removeSubscribingTopic(topic, formattedGroupID)
 		return
 	}
 
 	// Wrap into dispatcher consumer
-	dispatcherConsumer = newConsumer(group, topic, groupID, asyncNum, callback, lagCountHandler, lagCountInterval)
+	dispatcherConsumer = newConsumer(group, topic, formattedGroupID, asyncNum, callback, lagCountHandler, lagCountInterval)
 	return
 }
 
@@ -152,13 +152,13 @@ func (c *consumerService) newSaramaConsumer(topic string, offsetOldest bool, gro
 }
 
 // createTopic 檢查topic已訂閱, 創建topic
-func (c *consumerService) createTopic(topic string) (err error) {
+func (c *consumerService) createTopic(topic, groupID string) (err error) {
 	lockerI, _ := c.lockers.LoadOrStore(topic, new(sync.Mutex))
 	locker := lockerI.(*sync.Mutex)
 	locker.Lock()
 	defer locker.Unlock()
 
-	if c.isTopicScribing(topic) {
+	if c.isTopicScribing(topic, groupID) {
 		err = model.ErrSubscribeOnSubscribedTopic
 		return
 	}
@@ -167,25 +167,25 @@ func (c *consumerService) createTopic(topic string) (err error) {
 	if err != nil {
 		return
 	}
-	c.addToSubscribingTopics(topic)
+	c.addToSubscribingTopics(topic, groupID)
 	return
 }
 
-func (c *consumerService) isTopicScribing(topic string) (existed bool) {
-	_, existed = c.subscriptions.Load(topic)
+func (c *consumerService) isTopicScribing(topic, groupID string) (existed bool) {
+	_, existed = c.subscriptions.Load(topic + groupID)
 	return
 }
 
-func (c *consumerService) addToSubscribingTopics(topic string) {
-	c.subscriptions.Store(topic, struct{}{})
+func (c *consumerService) addToSubscribingTopics(topic, groupID string) {
+	c.subscriptions.Store(topic+groupID, struct{}{})
 }
 
-func (c *consumerService) removeSubscribingTopic(topic string) {
-	c.subscriptions.Delete(topic)
+func (c *consumerService) removeSubscribingTopic(topic, groupID string) {
+	c.subscriptions.Delete(topic + groupID)
 	TopicService.RemoveMapEntry(topic)
 }
 
-func (c *consumerService) getValidGroupID(topic, groupID string) string {
+func (c *consumerService) formatGroupID(topic, groupID string) string {
 	if strings.TrimSpace(groupID) == "" {
 		groupID = core.Config.DefaultGroupID
 	}
@@ -256,7 +256,7 @@ func (c *Consumer) close(err error) {
 		c.handler.started()
 
 		// Remove from subscribing topics
-		ConsumerService.removeSubscribingTopic(c.Topic)
+		ConsumerService.removeSubscribingTopic(c.Topic, c.GroupID)
 
 		// Send error to user
 		if err != nil {

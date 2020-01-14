@@ -2,25 +2,32 @@ package main
 
 import (
 	"testing"
+	"time"
 )
 
 func TestIntegration(t *testing.T) {
 	type args struct {
-		msgCount int
+		msgCount      int
+		producerCount int
+		consumerCount int
 	}
 	tests := []struct {
 		name string
 		args args
 	}{
-		{"5 Messages", args{5}},
-		{"50 Messages", args{50}},
-		{"1k Messages", args{1000}},
+		{"5 Messages, 1 x 1", args{5, 1, 1}},
+		{"50 Messages 1 x 1", args{50, 1, 1}},
+		{"1k Messages 1 x 1", args{1000, 1, 1}},
+		{"100 Messages 1 x 2", args{1000, 1, 2}},
+		{"100 Messages 2 x 1", args{1000, 2, 1}},
+		{"100 Messages 2 x 2", args{1000, 2, 2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotReceived, gotErrCount, gotReplied := Integration(tt.args.msgCount)
+			gotReceived, gotErrCount, gotReplied, expectedReceived := Integration(tt.args.msgCount, tt.args.producerCount, tt.args.consumerCount)
 			t.Logf("發送:%v  \t接收:%v  \t錯誤處理:%v  \t收到回條:%v", tt.args.msgCount, gotReceived, gotErrCount, gotReplied)
-			if gotReceived < tt.args.msgCount || gotErrCount < tt.args.msgCount || gotReplied < tt.args.msgCount {
+			time.Sleep(time.Minute)
+			if gotReceived < expectedReceived || gotErrCount < expectedReceived || gotReplied < expectedReceived {
 				t.Log("FAIL!")
 				t.Fail()
 			}
