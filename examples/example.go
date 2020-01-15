@@ -15,8 +15,8 @@ var (
 	_expectedSent, _expectedReceived           uint64
 	_brokers                                   = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_defaultGroupID                            = ""
-	_groupIDPrefix                             = "dispatcher.group."
-	_topic                                     = "dispatcher.example.testing.kevin"
+	_groupIDPrefix                             = "example.integration"
+	_topic                                     = "dispatcher.example.testing"
 	_logLevel                                  = "info"
 	_showExampleLog                            = false
 )
@@ -25,21 +25,21 @@ func main() {
 
 	start := time.Now()
 
-	Integration(100, 2, 1)
+	Integration(500, 1, 1)
 
 	printResult(start)
+	time.Sleep(time.Second) // Wait for offsets to be marked
 }
 
 // Integration 整合測試多producer, consumer併發收送訊息場景
 func Integration(testCount, producerCount, consumerCount int) (int, int, int, int) {
 
 	initParams(testCount, producerCount, consumerCount)
-
 	_ = dispatcher.Init(_brokers, dispatcher.InitSetLogLevel(_logLevel), dispatcher.InitSetDefaultGroupID(_defaultGroupID))
 
 	// Producers
 	for i := 1; i <= producerCount; i++ {
-		go send(_topic, testCount)
+		go send(i, testCount)
 	}
 
 	// Consumers
@@ -48,33 +48,30 @@ func Integration(testCount, producerCount, consumerCount int) (int, int, int, in
 	}
 
 	waitComplete()
-	time.Sleep(2 * time.Second) // Wait for offsets to be marked
 	return int(_received), int(_errCount), int(_replied), int(_expectedReceived)
 }
 
-func ReplyTimeout() {
-	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_defaultGroupID))
+func send(producerID, msgCount int) {
+	for i := 1; i <= msgCount; i++ {
+		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
+		_ = dispatcher.Send(_topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
+		//_ = dispatcher.Send(_topic, msg)
+		atomic.AddUint64(&_sent, 1)
+		if _showExampleLog {
+			fmt.Printf("Sent | %v/%v | %v\n", _sent, _expectedSent, string(msg))
+		}
+	}
 }
 
 func consumeWithRetry(topic string, groupID string) {
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
-	err := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
+	subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 
+	err := <-subscriberCtrl.Errors()
 	if err != nil {
 		fmt.Println(err.Error())
-	}
-}
-
-func send(topic string, msgCount int) {
-	for i := 1; i <= msgCount; i++ {
-		msg := []byte(fmt.Sprintf("msg-val-%v-%v", i, time.Now().Format("15:04.999")))
-		_ = dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
-		atomic.AddUint64(&_sent, 1)
-		if _showExampleLog {
-			fmt.Printf("Sent | %v/%v | %v\n", _sent, _expectedSent, string(msg))
-		}
 	}
 }
 

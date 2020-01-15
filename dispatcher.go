@@ -27,6 +27,8 @@ func Subscribe(topic string, callback model.BytesConsumerCallback, opts ...model
 }
 
 // SubscribeWithRetry receive messages until error count meet specified number.
-func SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (err error) {
-	return service.ConsumerService.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, opts...)
+func SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *SubscriberWithRetryCtrl) {
+	sCtrl := service.ConsumerService.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, opts...)
+	ctrl = &SubscriberWithRetryCtrl{sCtrl: *sCtrl}
+	return
 }

@@ -1,0 +1,129 @@
+package service
+
+import (
+	"context"
+	"github.com/pkg/errors"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+	"time"
+)
+
+type consumerWithRetry struct {
+	topic            string
+	controller       ConsumerWithRetryCtrl
+	failCount        int
+	failRetryLimit   int
+	consumer         Consumer
+	getRetryDuration func(failCount int) time.Duration
+}
+
+type ConsumerWithRetryCtrl struct {
+	ConsumeErrorChan chan error
+	CancelConsume    context.CancelFunc
+
+	consumeCtx context.Context
+}
+
+func NewConsumerWithRetry(topic string, failRetryLimit int, getRetryDuration func(failCount int) time.Duration) *consumerWithRetry {
+	consumeErrChan := make(chan error, 1)
+	ctx := context.Background()
+	retryConsumeCtx, cancel := context.WithCancel(ctx)
+	retryConsumer := ConsumerWithRetryCtrl{
+		ConsumeErrorChan: consumeErrChan,
+		CancelConsume:    cancel,
+		consumeCtx:       retryConsumeCtx,
+	}
+	return &consumerWithRetry{
+		topic:            topic,
+		controller:       retryConsumer,
+		failRetryLimit:   failRetryLimit,
+		getRetryDuration: getRetryDuration,
+	}
+}
+
+func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...model.Option) {
+
+	for {
+
+		// Create consumer & start consuming (non-blocking)
+		consumer, creationErr := ConsumerService.SubscribeWithMessageCallback(cr.topic, callback, opts...)
+		if creationErr != nil {
+			if !cr.handleCreationError(creationErr) {
+				return
+			}
+			continue
+		}
+
+		// Consumer created
+		cr.consumer = *consumer
+		cr.failCount = 0
+
+		// Listen consume error or cancel signal by user
+		select {
+		case <-cr.controller.consumeCtx.Done():
+			cr.canceledByUser()
+			return
+		case consumeErr, _ := <-cr.consumer.ConsumeErrChan:
+			if !cr.handleConsumeError(consumeErr) {
+				return
+			}
+		}
+	}
+
+	return
+}
+
+func (cr *consumerWithRetry) handleCreationError(createErr error) (isContinue bool) {
+
+	if errors.Cause(createErr) == model.ErrSubscribeOnSubscribedTopic {
+		core.Logger.Debugf("Stop create consumer, topic [%v] is already subscribing", cr.consumer.Topic)
+		cr.controller.ConsumeErrorChan <- createErr
+		close(cr.controller.ConsumeErrorChan)
+		return
+	}
+
+	cr.failCount++
+	core.Logger.Error("Create consumer err:", createErr.Error(), ", counting:", cr.failCount)
+	if cr.reachErrorLimit(createErr) {
+		return
+	}
+
+	isContinue = true
+	cr.sleep()
+	return
+}
+
+func (cr *consumerWithRetry) reachErrorLimit(err error) (isReachLimit bool) {
+	if cr.failCount >= cr.failRetryLimit {
+		core.Logger.Error("Error count reach limit, leaving now")
+		cr.controller.ConsumeErrorChan <- err
+		close(cr.controller.ConsumeErrorChan)
+		isReachLimit = true
+	}
+	return
+}
+
+func (cr *consumerWithRetry) handleConsumeError(consumeErr error) (ok bool) {
+	if consumeErr != nil {
+		cr.failCount++
+		core.Logger.Errorf("Error during consumption: [%v], counting [%v], topic [%v], groupID [%v]", consumeErr.Error(), cr.failCount, cr.consumer.Topic, cr.consumer.GroupID)
+		if cr.reachErrorLimit(consumeErr) {
+			ok = false
+			return
+		}
+	} else {
+		core.Logger.Error("Consumer terminated without error")
+	}
+	cr.sleep()
+	return
+}
+
+func (cr *consumerWithRetry) canceledByUser() {
+	cr.consumer.CancelConsume()
+	close(cr.controller.ConsumeErrorChan)
+	return
+}
+
+func (cr *consumerWithRetry) sleep() {
+	time.Sleep(cr.getRetryDuration(cr.failCount))
+}

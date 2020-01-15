@@ -11,7 +11,7 @@ import (
 
 var (
 	_brokers  = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	_groupID  = ""
+	_groupID  = "example.consumer"
 	_topic    = "dispatcher.example.testing"
 	_start    = time.Now()
 	_logLevel = "info"
@@ -101,8 +101,9 @@ func consumeWithRetry() {
 	getRetryDuration := func(failCount int) time.Duration { return 5 * time.Second }
 
 	// Subscribe with retry
-	err := dispatcher.SubscribeWithRetry(_topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
+	ctrl := dispatcher.SubscribeWithRetry(_topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
 
+	err := <-ctrl.Errors()
 	if err != nil {
 		fmt.Println(err.Error())
 	}

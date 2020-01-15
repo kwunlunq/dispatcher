@@ -5,6 +5,7 @@ import (
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/service"
 	"time"
 )
 
@@ -43,4 +44,17 @@ func (c *SubscriberCtrl) Stop() {
 
 func (c *SubscriberCtrl) Errors() <-chan error {
 	return c.errors
+}
+
+// Subscriber (with retry)
+type SubscriberWithRetryCtrl struct {
+	sCtrl service.ConsumerWithRetryCtrl
+}
+
+func (c *SubscriberWithRetryCtrl) Stop() {
+	c.sCtrl.CancelConsume()
+}
+
+func (c *SubscriberWithRetryCtrl) Errors() <-chan error {
+	return c.sCtrl.ConsumeErrorChan
 }
