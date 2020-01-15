@@ -29,6 +29,7 @@ func (s *topicService) Create(topic string) (err error) {
 				err = errors.Wrap(err, "error creating topic")
 				return
 			}
+			core.Logger.Debug("Topic created: ", topic)
 			s.topics.Store(topic, struct{}{})
 		}
 	}
@@ -156,7 +157,6 @@ func (s *topicService) create(topic string) (err error) {
 		core.Logger.Errorf(err.Error())
 		return
 	}
-	core.Logger.Debugf("Topic created: [%v].", topic)
 
 	// close connection
 	closingErr := broker.Close()

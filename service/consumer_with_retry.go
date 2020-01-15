@@ -9,12 +9,14 @@ import (
 )
 
 type consumerWithRetry struct {
-	topic            string
-	controller       ConsumerWithRetryCtrl
-	failCount        int
-	failRetryLimit   int
-	consumer         Consumer
-	getRetryDuration func(failCount int) time.Duration
+	topic              string
+	controller         ConsumerWithRetryCtrl
+	failCount          int
+	failRetryLimit     int
+	consumer           Consumer
+	getRetryDuration   func(failCount int) time.Duration
+	setConsumeStarted  func()
+	waitConsumeStarted func()
 }
 
 type ConsumerWithRetryCtrl struct {
@@ -24,7 +26,7 @@ type ConsumerWithRetryCtrl struct {
 	consumeCtx context.Context
 }
 
-func NewConsumerWithRetry(topic string, failRetryLimit int, getRetryDuration func(failCount int) time.Duration) *consumerWithRetry {
+func NewConsumerWithRetry(topic string, failRetryLimit int, getRetryDuration func(failCount int) time.Duration) (cr *consumerWithRetry) {
 	consumeErrChan := make(chan error, 1)
 	ctx := context.Background()
 	retryConsumeCtx, cancel := context.WithCancel(ctx)
@@ -33,20 +35,27 @@ func NewConsumerWithRetry(topic string, failRetryLimit int, getRetryDuration fun
 		CancelConsume:    cancel,
 		consumeCtx:       retryConsumeCtx,
 	}
-	return &consumerWithRetry{
+	cr = &consumerWithRetry{
 		topic:            topic,
 		controller:       retryConsumer,
 		failRetryLimit:   failRetryLimit,
 		getRetryDuration: getRetryDuration,
 	}
+	cr.genStartedMethod()
+	return
+}
+
+func (cr *consumerWithRetry) Do(callback model.MessageConsumerCallback, opts ...model.Option) {
+	go cr.do(callback, opts...)
+	cr.waitConsumeStarted()
+	return
 }
 
 func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...model.Option) {
-
 	for {
-
 		// Create consumer & start consuming (non-blocking)
 		consumer, creationErr := ConsumerService.SubscribeWithMessageCallback(cr.topic, callback, opts...)
+		cr.setConsumeStarted()
 		if creationErr != nil {
 			if !cr.handleCreationError(creationErr) {
 				return
@@ -69,8 +78,6 @@ func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...
 			}
 		}
 	}
-
-	return
 }
 
 func (cr *consumerWithRetry) handleCreationError(createErr error) (isContinue bool) {
@@ -126,4 +133,20 @@ func (cr *consumerWithRetry) canceledByUser() {
 
 func (cr *consumerWithRetry) sleep() {
 	time.Sleep(cr.getRetryDuration(cr.failCount))
+}
+
+func (cr *consumerWithRetry) genStartedMethod() {
+	startedChan := make(chan struct{})
+	cr.setConsumeStarted = func() {
+		select {
+		case startedChan <- struct{}{}:
+			return
+		default:
+			return
+		}
+	}
+	cr.waitConsumeStarted = func() {
+		<-startedChan
+	}
+	return
 }

@@ -5,7 +5,7 @@ import (
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 )
 
-var _ver = "v1.11.7"
+var _ver = "v1.12.beta"
 
 func Init(brokers []string, opts []model.Option) error {
 	dis := model.MakeDispatcher(opts)

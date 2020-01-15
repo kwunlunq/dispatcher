@@ -1,9 +1,11 @@
 # Changelog
 
-### Version 1.12.0 (developing)
+### Version 1.12.0 (2020-01-15)
 
 Features:
-- Producer增加參數: 監控consumer lag狀況
+- ConsumerWithRetry現在改為non-blocking, 回傳一個控制器 SubscriberWithRetryCtrl, 包含method:
+  - Stop() 停止監聽
+  - Errors() 回傳error chan供使用者監聽, 取出的error可能為nil(手動停止監聽)
 
 Improvements:
 - 訊息預設使用LZ4方式壓縮

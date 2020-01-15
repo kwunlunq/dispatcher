@@ -153,7 +153,7 @@ func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriT
 		err := ProducerService.send(message)
 		core.Logger.Debugf("Message sent back: Topic [%v], Message [%v]", message.Topic, string(message.Value))
 		if err != nil {
-			core.Logger.Error("Err sending back to producer:", err.Error())
+			core.Logger.Debugf("Err sending back to producer:", err.Error())
 		}
 	}
 }

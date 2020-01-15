@@ -51,12 +51,12 @@ dispatcher.Subscribe(topic, callback, ...opts) (SubscriberCtrl, error)
 
 #### 斷線重試接收
 ```go
-dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100))
+dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100)) (ctrl *SubscriberWithRetryCtrl)
 ```
 - `topic`, `callback`, `opts`: 同 subscribe
 - `failRetryLimit` 重試次數上限, 超過時取消監聽, 並回傳最後一個發生的error
 - `getRetryDuration` 依照失敗次數回傳每次重試需等待時間 (`func(failCount int) time.Duration`)
-
+- `SubscriberWithRetryCtrl`: 包含 `Errors()`接收監聽過程error, `Stops()`手動終止監聽等控制功能
 
 ### 可用選項
 

@@ -167,7 +167,7 @@ func (p *producerService) replyMessageListener(task model.Task) {
 // consumerListener 監聽來自consumer的訊息 (error & reply)
 func (p *producerService) consumerListener(topic string, handler model.MessageConsumerCallback) {
 	consumerWithRetry := NewConsumerWithRetry(topic, 5, func(failCount int) time.Duration { return time.Second })
-	go consumerWithRetry.do(handler)
+	consumerWithRetry.Do(handler)
 	err := <-consumerWithRetry.controller.ConsumeErrorChan
 	if err != nil {
 		if wraperrors.Cause(err) != model.ErrSubscribeOnSubscribedTopic {

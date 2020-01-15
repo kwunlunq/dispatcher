@@ -39,7 +39,7 @@ func (s *consumerService) SubscribeWithMessageCallback(topic string, callback mo
 
 func (s *consumerService) SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *ConsumerWithRetryCtrl) {
 	consumerWithRetry := NewConsumerWithRetry(topic, failRetryLimit, getRetryDuration)
-	go consumerWithRetry.do(callback.Wrap(), opts...)
+	consumerWithRetry.Do(callback.Wrap(), opts...)
 	ctrl = &consumerWithRetry.controller
 	return
 }
