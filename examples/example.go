@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -22,6 +25,9 @@ var (
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:0815", nil))
+	}()
 
 	start := time.Now()
 
