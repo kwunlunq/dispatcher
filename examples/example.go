@@ -31,7 +31,7 @@ func main() {
 
 	start := time.Now()
 
-	Integration("dispatcher.example.testing", 60000, 1, 1)
+	Integration("dispatcher.example.testing", 1000, 1, 1)
 	//MultipleTopics("dispatcher.example.testing", 20, 10000, 1, 1)
 
 	printResult(start)
@@ -87,6 +87,7 @@ func consume(topic string, groupID string) {
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
 	subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
+	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID), dispatcher.ConsumerNotCommitOnError())
 
 	go func() {
 		err := <-subscriberCtrl.Errors()

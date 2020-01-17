@@ -25,15 +25,18 @@ type Dispatcher struct {
 	ProducerReplyTimeout time.Duration
 
 	// Consumer options
-	ConsumerAsyncNum         int  // num of goroutine to process msg
-	ConsumerOmitOldMsg       bool // set kafka to OffsetNewest if enable
-	ConsumerGroupID          string
-	ConsumerLagCountHandler  func(lagCount int)
-	ConsumerLagCountInterval time.Duration
+	ConsumerAsyncNum              int  // num of goroutine to process msg
+	ConsumerOmitOldMsg            bool // set kafka to OffsetNewest if enable
+	ConsumerGroupID               string
+	ConsumerLagCountHandler       func(lagCount int)
+	ConsumerLagCountInterval      time.Duration
+	ConsumerIsCommitOffsetOnError bool
 }
 
 func MakeDispatcher(opts []Option) Dispatcher {
-	d := &Dispatcher{}
+	d := &Dispatcher{
+		ConsumerIsCommitOffsetOnError: true,
+	}
 	d.WithOptions(opts)
 	glob.SetIfZero(&d.KafkaConfig, "MsgMaxBytes", 20000000)
 	glob.SetIfZero(&d.KafkaConfig, "TopicPartitionNum", 10)

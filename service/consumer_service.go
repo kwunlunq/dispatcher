@@ -33,7 +33,7 @@ func (s *consumerService) SubscribeWithMessageCallback(topic string, callback mo
 	dis := model.MakeDispatcher(opts)
 
 	// Subscribe
-	consumer, err = s.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg, dis.ConsumerLagCountHandler, dis.ConsumerLagCountInterval)
+	consumer, err = s.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg, dis.ConsumerLagCountHandler, dis.ConsumerLagCountInterval, dis.ConsumerIsCommitOffsetOnError)
 	return
 }
 
@@ -44,10 +44,10 @@ func (s *consumerService) SubscribeWithRetry(topic string, callback model.BytesC
 	return
 }
 
-func (s *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool, lagCountHandler func(lagCount int), lagCountInterval time.Duration) (consumer *Consumer, err error) {
+func (s *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool, lagCountHandler func(lagCount int), lagCountInterval time.Duration, isMarkOffsetOnError bool) (consumer *Consumer, err error) {
 
 	// Create consumer
-	consumer, err = s.newConsumer(topic, offsetOldest, groupID, callback, asyncNum, lagCountHandler, lagCountInterval)
+	consumer, err = s.newConsumer(topic, offsetOldest, groupID, callback, asyncNum, lagCountHandler, lagCountInterval, isMarkOffsetOnError)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
 		return
@@ -109,7 +109,7 @@ func (c *Consumer) consume() (errChan chan error) {
 	return
 }
 
-func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, lagCountHandler func(lagCount int), lagCountInterval time.Duration) (dispatcherConsumer *Consumer, err error) {
+func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, lagCountHandler func(lagCount int), lagCountInterval time.Duration, isMarkOffsetOnError bool) (dispatcherConsumer *Consumer, err error) {
 
 	// Create consumer group for each topic
 	formattedGroupID := s.formatGroupID(topic, groupID)
@@ -130,7 +130,7 @@ func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID s
 	}
 
 	// Wrap into dispatcher consumer
-	dispatcherConsumer = newConsumer(group, topic, formattedGroupID, asyncNum, callback, lagCountHandler, lagCountInterval)
+	dispatcherConsumer = newConsumer(group, topic, formattedGroupID, asyncNum, callback, lagCountHandler, lagCountInterval, isMarkOffsetOnError)
 	return
 }
 

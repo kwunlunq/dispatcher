@@ -27,18 +27,19 @@ type WorkerPool interface {
 }
 
 type workerPool struct {
-	ctx               context.Context
-	callback          model.MessageConsumerCallback
-	groupID           string
-	jobs              chan *sarama.ConsumerMessage
-	processedMessages chan *sarama.ConsumerMessage
-	errors            chan model.Message
-	replies           chan model.Message
+	ctx                 context.Context
+	callback            model.MessageConsumerCallback
+	groupID             string
+	jobs                chan *sarama.ConsumerMessage
+	processedMessages   chan *sarama.ConsumerMessage
+	errors              chan model.Message
+	replies             chan model.Message
+	isMarkOffsetOnError bool
 }
 
-func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) WorkerPool {
+func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string, isMarkOffsetOnError bool) WorkerPool {
 
-	pool := poolService.new(ctx, poolSize, callback, groupID)
+	pool := poolService.new(ctx, poolSize, callback, groupID, isMarkOffsetOnError)
 
 	for i := 0; i < poolSize; i++ {
 		go pool.newWorker(i)
@@ -50,15 +51,16 @@ func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSiz
 	return pool
 }
 
-func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) workerPool {
+func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string, isMarkOffsetOnError bool) workerPool {
 	return workerPool{
-		jobs:              make(chan *sarama.ConsumerMessage),
-		processedMessages: make(chan *sarama.ConsumerMessage, poolSize),
-		errors:            make(chan model.Message, poolSize),
-		replies:           make(chan model.Message, poolSize),
-		callback:          callback,
-		ctx:               ctx,
-		groupID:           groupID,
+		jobs:                make(chan *sarama.ConsumerMessage),
+		processedMessages:   make(chan *sarama.ConsumerMessage, poolSize),
+		errors:              make(chan model.Message, poolSize),
+		replies:             make(chan model.Message, poolSize),
+		callback:            callback,
+		ctx:                 ctx,
+		groupID:             groupID,
+		isMarkOffsetOnError: isMarkOffsetOnError,
 	}
 }
 
@@ -94,11 +96,16 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
 	core.Logger.Debugf("(Worker[%v]) Received message from topic: [%v, %v-%v], msg: %v", workerID, saramaMsg.Topic, saramaMsg.Partition, saramaMsg.Offset, glob.TrimBytes(saramaMsg.Value))
 
-	// Mark offset after message processed / any error occurs
-	defer func() { p.processedMessages <- saramaMsg }()
+	var err error
+	defer func() {
+		if err == nil || p.isMarkOffsetOnError {
+			p.done(saramaMsg)
+		}
+	}()
 
 	// Parse
-	message, err := p.parse(saramaMsg)
+	var message model.Message
+	message, err = p.parse(saramaMsg)
 	if err != nil {
 		err = errors.Wrapf(err, "error parsing message: %v", string(saramaMsg.Value))
 		core.Logger.Error(err.Error())
@@ -113,7 +120,7 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
 	// Process message
 	if p.callback != nil {
-		p.processMessage(workerID, message)
+		err = p.processMessage(workerID, message)
 	}
 }
 
@@ -163,7 +170,7 @@ func (p workerPool) done(job *sarama.ConsumerMessage) {
 	p.processedMessages <- job
 }
 
-func (p workerPool) processMessage(workerID string, message model.Message) {
+func (p workerPool) processMessage(workerID string, message model.Message) (err error) {
 
 	// Catch panic on custom callback
 	defer func() {
@@ -172,7 +179,7 @@ func (p workerPool) processMessage(workerID string, message model.Message) {
 		}
 	}()
 
-	err := p.callback(message)
+	err = p.callback(message)
 
 	// Send error message
 	if err != nil && (message.IsSendError || message.TaskID == "" /* TODO: 相容舊版 */) {
@@ -180,6 +187,7 @@ func (p workerPool) processMessage(workerID string, message model.Message) {
 		p.errors <- message
 		core.Logger.Debugf("(Worker[%v]) Error handling message [%v-%v-%v/%v]: %v", workerID, message.Topic, message.Partition, message.Offset, glob.TrimBytes(message.Value), err.Error())
 	}
+	return
 }
 
 func (p workerPool) parseCompatibleMessage(message *model.Message, saramaMsgVal []byte) {

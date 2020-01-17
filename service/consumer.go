@@ -26,7 +26,7 @@ type Consumer struct {
 	saramaConsumerCancelFunc context.CancelFunc
 }
 
-func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, lagCountHandler func(lagCount int), lagCountInterval time.Duration) *Consumer {
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, lagCountHandler func(lagCount int), lagCountInterval time.Duration, isMarkOffsetOnError bool) *Consumer {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -34,7 +34,7 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int
 
 	started := make(chan struct{}, 1)
 	handler := consumerHandlerSarama{
-		pool:        WorkerPoolService.MakeWorkerPool(wpCtx, asyncNum, callback, groupID),
+		pool:        WorkerPoolService.MakeWorkerPool(wpCtx, asyncNum, callback, groupID, isMarkOffsetOnError),
 		startedChan: started,
 	}
 
