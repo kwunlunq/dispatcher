@@ -10,6 +10,9 @@ Features:
 Improvements:
 - 訊息預設使用LZ4方式壓縮
 
+Bug Fixes:
+- 修復mem問題
+
 ### Version 1.11.7 (2020-01-10)
 
 Bug Fixes:

@@ -51,12 +51,11 @@ func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSiz
 }
 
 func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string) workerPool {
-	maxSize := 100000
 	return workerPool{
 		jobs:              make(chan *sarama.ConsumerMessage),
-		processedMessages: make(chan *sarama.ConsumerMessage, maxSize),
-		errors:            make(chan model.Message, maxSize),
-		replies:           make(chan model.Message, maxSize),
+		processedMessages: make(chan *sarama.ConsumerMessage, poolSize),
+		errors:            make(chan model.Message, poolSize),
+		replies:           make(chan model.Message, poolSize),
 		callback:          callback,
 		ctx:               ctx,
 		groupID:           groupID,
@@ -144,17 +143,19 @@ func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Mess
 
 func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriTopic string) string) {
 	for message := range messagesChan {
-		// 僅回送一次
-		message.IsSendError = false
-		message.IsReplyMessage = false
+		go func(thisMessage model.Message) {
+			// 僅回送一次
+			thisMessage.IsSendError = false
+			thisMessage.IsReplyMessage = false
 
-		// 發送訊息
-		message.Topic = getTopic(message.Topic)
-		err := ProducerService.send(message)
-		core.Logger.Debugf("Message sent back: Topic [%v], Message [%v]", message.Topic, string(message.Value))
-		if err != nil {
-			core.Logger.Debugf("Err sending back to producer:", err.Error())
-		}
+			// 發送訊息
+			thisMessage.Topic = getTopic(thisMessage.Topic)
+			err := ProducerService.send(thisMessage)
+			core.Logger.Debugf("Message sent back: Topic [%v], Message [%v]", thisMessage.Topic, string(thisMessage.Value))
+			if err != nil {
+				core.Logger.Debugf("Err sending back to producer:", err.Error())
+			}
+		}(message)
 	}
 }
 

@@ -19,9 +19,9 @@ var (
 	_brokers                                   = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_defaultGroupID                            = ""
 	_groupIDPrefix                             = "example.integration"
-	_topic                                     = "dispatcher.example.testing"
-	_logLevel                                  = "info"
-	_showExampleLog                            = true
+	//_topic                                   = "dispatcher.example.testing"
+	_logLevel       = "info"
+	_showExampleLog = true
 )
 
 func main() {
@@ -31,36 +31,45 @@ func main() {
 
 	start := time.Now()
 
-	Integration(1000, 1, 1)
+	Integration("dispatcher.example.testing", 60000, 1, 1)
+	//MultipleTopics("dispatcher.example.testing", 20, 10000, 1, 1)
 
 	printResult(start)
 	time.Sleep(time.Second) // Wait for offsets to be marked
 }
 
+func MultipleTopics(topicPrefix string, topicCount, testCount, producerCount, consumerCount int) {
+	for i := 1; i <= topicCount; i++ {
+		topic := fmt.Sprintf("%v.%v", topicPrefix, i)
+		go Integration(topic, testCount, producerCount, consumerCount)
+	}
+}
+
 // Integration 整合測試多producer, consumer併發收送訊息場景
-func Integration(testCount, producerCount, consumerCount int) (int, int, int, int) {
+func Integration(topic string, testCount, producerCount, consumerCount int) (int, int, int, int) {
 
 	_ = dispatcher.Init(_brokers, dispatcher.InitSetLogLevel(_logLevel), dispatcher.InitSetDefaultGroupID(_defaultGroupID))
 	initParams(testCount, producerCount, consumerCount)
 
 	// Producers
 	for i := 1; i <= producerCount; i++ {
-		go send(i, testCount)
+		go send(topic, i, testCount)
 	}
 
 	// Consumers
 	for i := 1; i <= consumerCount; i++ {
-		go consume(_topic, _groupIDPrefix+strconv.Itoa(i))
+		go consume(topic, _groupIDPrefix+strconv.Itoa(i))
 	}
 
 	waitComplete()
 	return int(_received), int(_errCount), int(_replied), int(_expectedReceived)
 }
 
-func send(producerID, msgCount int) {
+func send(topic string, producerID, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
-		err := dispatcher.Send(_topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
+		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
+		//err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		//_ = dispatcher.Send(_topic, msg)
 		if err != nil {
 			fmt.Println("Err sending message:", err)
