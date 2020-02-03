@@ -155,7 +155,7 @@ func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler)
 }
 
 // replyMessageListener 建立 & 執行 reply 任務, 並監控過期任務
-func (p *producerService) replyMessageListener(task model.Task) {
+func (p *producerService) replyMessageListener(task *model.Task) {
 	// Add task
 	p.replyTasks.Store(task.Message.TaskID, task)
 	core.Logger.Debug("Task added: ", task.Message.TaskID)
@@ -179,7 +179,7 @@ func (p *producerService) consumerListener(topic string, handler model.MessageCo
 	}
 }
 
-// handleReplyMessage 執行handler, 移出tasks
+// handleReplyMessage 執行handler, 若已過期則不執行
 func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 	return func(message model.Message) error {
 		core.Logger.Debugf("Producer received reply message: [%v]\n", message.Value)
@@ -189,33 +189,39 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 			core.Logger.Debugf("Task not found, taskID: %v, value: %v", message.TaskID, glob.TrimBytes(message.Value))
 			return nil
 		}
-		task := taskI.(model.Task)
+		task := taskI.(*model.Task)
 
 		// Process
 		task.Message = message
 		message.ProducerReceivedTime = time.Now()
-		p.runReplyHandler(task, nil)
+		task.Replier.HandleMessage(task.Message, nil)
 		return nil
 	}
 }
 
-// scheduleDeleteExpiredTasks 每5秒鐘檢查一次, 移除超時(使用者指定時間)的任務
+// scheduleDeleteExpiredTasks 每5秒鐘檢查一次, 移除超時的任務
 func (p *producerService) scheduleDeleteExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
 		core.Logger.Debugf("正在檢查過期tasks...")
-		now := time.Now().UnixNano()
+		checkStartTime := time.Now().UnixNano()
 		deletedCount := 0
 		count := 0
 		p.replyTasks.Range(func(key, value interface{}) bool {
 			count++
-			task, ok := value.(model.Task)
+			task, ok := value.(*model.Task)
 			if !ok {
 				return true
 			}
-			if task.ExpiredTimeNano > 0 && now > task.ExpiredTimeNano && !task.Replier.IsExecuted {
-				p.runReplyHandler(task, model.ErrTimeout)
+			if task.IsExpired(checkStartTime) {
+				task.Replier.Locker.Lock()
+				if !task.Replier.IsExecuted {
+					task.Replier.HandleMessage(task.Message, model.ErrTimeout)
+				}
 				deletedCount++
+				task.Replier.IsExpired = true
+				p.replyTasks.Delete(task.Message.TaskID)
+				task.Replier.Locker.Unlock()
 			}
 			return true
 		})
@@ -224,20 +230,5 @@ func (p *producerService) scheduleDeleteExpiredTasks() func() {
 			core.Logger.Debugf("刪除過期的reply任務: %d筆, 總共 %d筆", deletedCount, count)
 		}
 		time.Sleep(checkInterval)
-	}
-}
-
-// runReplyHandler run handler (only once) & remove the task
-func (p *producerService) runReplyHandler(task model.Task, err error) {
-	defer func() {
-		if err := recover(); err != nil {
-			core.Logger.Errorf("Panic on custom reply handler: %v\nsStacktrace:\n%v", err, string(debug.Stack()))
-		}
-	}()
-	core.Logger.Debugf("Executing reply handler: %v", string(task.Message.Value))
-	task.Replier.HandleMessage(task.Message.ConsumerGroupID, task.Message, err)
-	if task.ExpiredTimeNano > 0 {
-		p.replyTasks.Delete(task.Message.TaskID)
-		core.Logger.Debug("Task removed: ", task.Message.TaskID)
 	}
 }

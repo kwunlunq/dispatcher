@@ -18,7 +18,7 @@ var (
 	_expectedSent, _expectedReceived           uint64
 	_brokers                                   = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_defaultGroupID                            = ""
-	_groupIDPrefix                             = "example.integration"
+	_groupIDPrefix                             = "example.integration."
 	//_topic                                   = "dispatcher.example.testing"
 	_logLevel       = "info"
 	_showExampleLog = true
@@ -61,7 +61,7 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 	for i := 1; i <= consumerCount; i++ {
 		groupID := _groupIDPrefix + strconv.Itoa(i)
 		go consume(topic, groupID)
-		go monitorLagStatus(topic, groupID)
+		//go monitorLagStatus(topic, groupID)
 	}
 
 	waitComplete()
@@ -71,7 +71,7 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 func send(topic string, producerID, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
-		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Second))
+		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
 		//err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		//_ = dispatcher.Send(_topic, msg)
 		if err != nil {
