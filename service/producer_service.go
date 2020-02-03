@@ -203,7 +203,7 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 func (p *producerService) scheduleDeleteExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
-		core.Logger.Debug("正在檢查過期tasks...")
+		core.Logger.Debugf("正在檢查過期tasks...")
 		now := time.Now().UnixNano()
 		deletedCount := 0
 		count := 0

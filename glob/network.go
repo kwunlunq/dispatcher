@@ -26,3 +26,15 @@ func GetMacAddrs() (macAddrs []string) {
 func GetHashMacAddrs() string {
 	return HashMd5(strings.Join(GetMacAddrs(), ","))
 }
+
+// CorrectUrl by suffix "/" and prefix "http://"
+func CorrectUrl(str string) string {
+	str = strings.TrimSpace(str)
+	if !strings.HasSuffix(str, "/") {
+		str += "/"
+	}
+	if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") {
+		str = "http://" + str
+	}
+	return str
+}

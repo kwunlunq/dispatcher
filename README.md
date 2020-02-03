@@ -19,6 +19,8 @@ dispatcher.Init(brokers, ...opts)
   - `InitSetKafkaConfig`: 指定各Kafka相關設定, 包含partition數量, replica數量, 訊息大小...等
   - `InitSetDefaultGroupID`: 預設GroupID, 將用於producer & consumer 接收訊息時的群組編號, 未指定將設為hash過的mac address
   - `InitSetLogLevel`: 指定log等級, 可指定 "info" (預設), "debug". 設為debug時將開啟sarama的log
+  - `InitEnableSaramaLog`: 啟用sarama log
+  - `InitSetMonitorHost`: 設定monitor host, 供GetConsumeStatusByGroupID()使用
 
 ### 傳送訊息
 
@@ -57,7 +59,17 @@ dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration,
 - `topic`, `callback`, `opts`: 同 subscribe
 - `failRetryLimit` 重試次數上限, 超過時取消監聽, 並回傳最後一個發生的error
 - `getRetryDuration` 依照失敗次數回傳每次重試需等待時間 (`func(failCount int) time.Duration`)
-- `SubscriberWithRetryCtrl`: 包含 `Errors()`接收監聽過程error, `Stops()`手動終止監聽等控制功能
+- `SubscriberWithRetryCtrl`: 包含
+  - `Errors()` 接收監聽過程error
+  - `Stops()` 手動終止監聽
+  - `GroupID` 實際監聽使用的consumer group id
+- `opts`: 同Subscribe的參數
+
+### 監聽消費狀況
+```go
+dispatcher.GetConsumeStatusByGroupID(_topic, _groupID) (status ConsumeStatus, err error)
+````
+`ConsumeStatus` 包含 `GroupID` 及 `LagCount`
 
 ### 可用選項
 

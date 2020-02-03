@@ -22,6 +22,7 @@ var (
 	//_topic                                   = "dispatcher.example.testing"
 	_logLevel       = "info"
 	_showExampleLog = true
+	_monitorHost    = "10.200.252.184:7777"
 )
 
 func main() {
@@ -48,7 +49,7 @@ func MultipleTopics(topicPrefix string, topicCount, testCount, producerCount, co
 // Integration 整合測試多producer, consumer併發收送訊息場景
 func Integration(topic string, testCount, producerCount, consumerCount int) (int, int, int, int) {
 
-	_ = dispatcher.Init(_brokers, dispatcher.InitSetLogLevel(_logLevel), dispatcher.InitSetDefaultGroupID(_defaultGroupID))
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetLogLevel(_logLevel), dispatcher.InitSetDefaultGroupID(_defaultGroupID), dispatcher.InitSetMonitorHost(_monitorHost))
 	initParams(testCount, producerCount, consumerCount)
 
 	// Producers
@@ -58,7 +59,9 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 
 	// Consumers
 	for i := 1; i <= consumerCount; i++ {
-		go consume(topic, _groupIDPrefix+strconv.Itoa(i))
+		groupID := _groupIDPrefix + strconv.Itoa(i)
+		go consume(topic, groupID)
+		go monitorLagStatus(topic, groupID)
 	}
 
 	waitComplete()
@@ -68,7 +71,7 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 func send(topic string, producerID, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
-		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, dispatcher.NoTimeout))
+		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Second))
 		//err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
 		//_ = dispatcher.Send(_topic, msg)
 		if err != nil {
@@ -82,7 +85,7 @@ func send(topic string, producerID, msgCount int) {
 	}
 }
 
-func consume(topic string, groupID string) {
+func consume(topic, groupID string) {
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
@@ -102,6 +105,16 @@ func consume(topic string, groupID string) {
 	//time.Sleep(3 * time.Second)
 	//fmt.Println("Stopping consumer")
 	//subscriberCtrl.Stop()
+}
+
+func monitorLagStatus(topic, groupID string) {
+	for {
+		consumeStatus, err := dispatcher.GetConsumeStatusByGroupID(topic, groupID)
+		if _showExampleLog {
+			fmt.Printf("[Monitor] Topic: %v / GroupID: %v / Lag: %v / Err: %v\n", topic, consumeStatus.GroupID, consumeStatus.LagCount, err)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func msgHandler(value []byte) error {

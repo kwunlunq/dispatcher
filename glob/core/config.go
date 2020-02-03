@@ -18,6 +18,7 @@ type CoreConfig struct {
 	Brokers        []string
 	IsInitialized  bool
 	UserKey        string
+	MonitorHost    string
 }
 
 type KafkaConfig struct {

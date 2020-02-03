@@ -12,10 +12,12 @@ import (
 // Dispatcher defines all optional fields available to be customized.
 type Dispatcher struct {
 	// Init options
-	KafkaConfig    core.KafkaConfig
-	LogLevel       string
-	DefaultGroupID string
-	UserKey        string
+	KafkaConfig     core.KafkaConfig
+	LogLevel        string
+	EnableSaramaLog bool
+	DefaultGroupID  string
+	UserKey         string
+	MonitorHost     string
 
 	// Producer options
 	ProducerErrHandler   ProducerCustomerErrHandler // handle error from consumer
@@ -51,6 +53,7 @@ func (d Dispatcher) ToCoreConfig() core.CoreConfig {
 	return core.CoreConfig{
 		DefaultGroupID: d.DefaultGroupID,
 		KafkaConfig:    d.KafkaConfig,
+		MonitorHost:    d.MonitorHost,
 	}
 }
 
@@ -94,7 +97,7 @@ func (d Dispatcher) ToSaramaConfig() (config *sarama.Config) {
 	config.ClientID = "dispatcher"
 
 	// Switch on sarama log if needed
-	if d.LogLevel == "debug" {
+	if d.EnableSaramaLog {
 		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.Ltime)
 	}
 	//sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)

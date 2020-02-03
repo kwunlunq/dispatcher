@@ -48,7 +48,8 @@ func (c *SubscriberCtrl) Errors() <-chan error {
 
 // Subscriber (with retry)
 type SubscriberWithRetryCtrl struct {
-	sCtrl service.ConsumerWithRetryCtrl
+	sCtrl   service.ConsumerWithRetryCtrl
+	GroupID string
 }
 
 func (c *SubscriberWithRetryCtrl) Stop() {
@@ -58,3 +59,6 @@ func (c *SubscriberWithRetryCtrl) Stop() {
 func (c *SubscriberWithRetryCtrl) Errors() <-chan error {
 	return c.sCtrl.ConsumeErrorChan
 }
+
+// ConsumeStatus
+type ConsumeStatus model.ConsumeStatus

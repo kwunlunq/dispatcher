@@ -1,5 +1,14 @@
 # Changelog
 
+### Version 1.13.0
+
+Features:
+- 增加取得consume status接口 GetConsumeStatusByGroupID(), 使用前須在init提供monitorHost: InitSetMonitorHost
+- 增加顯示sarama內部log開關: InitEnableSaramaLog()
+
+Improvements:
+- SubscriberWithRetryCtrl增加欄位: `GroupID`取得實際監聽使用的consumer group id
+
 ### Version 1.12.0 (2020-01-15)
 
 Features:

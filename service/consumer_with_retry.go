@@ -22,6 +22,7 @@ type consumerWithRetry struct {
 type ConsumerWithRetryCtrl struct {
 	ConsumeErrorChan chan error
 	CancelConsume    context.CancelFunc
+	GroupID          string
 
 	consumeCtx context.Context
 }
@@ -30,14 +31,14 @@ func NewConsumerWithRetry(topic string, failRetryLimit int, getRetryDuration fun
 	consumeErrChan := make(chan error, 1)
 	ctx := context.Background()
 	retryConsumeCtx, cancel := context.WithCancel(ctx)
-	retryConsumer := ConsumerWithRetryCtrl{
+	consumerCtrl := ConsumerWithRetryCtrl{
 		ConsumeErrorChan: consumeErrChan,
 		CancelConsume:    cancel,
 		consumeCtx:       retryConsumeCtx,
 	}
 	cr = &consumerWithRetry{
 		topic:            topic,
-		controller:       retryConsumer,
+		controller:       consumerCtrl,
 		failRetryLimit:   failRetryLimit,
 		getRetryDuration: getRetryDuration,
 	}
@@ -55,6 +56,9 @@ func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...
 	for {
 		// Create consumer & start consuming (non-blocking)
 		consumer, creationErr := ConsumerService.SubscribeWithMessageCallback(cr.topic, callback, opts...)
+		if consumer != nil {
+			cr.controller.GroupID = consumer.GroupID
+		}
 		cr.setConsumeStarted()
 		if creationErr != nil {
 			if !cr.handleCreationError(creationErr) {

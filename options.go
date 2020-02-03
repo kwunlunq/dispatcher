@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"time"
@@ -83,4 +84,12 @@ func InitSetDefaultGroupID(defaultGroupID string) model.Option {
 // InitSetLogLevel set log level of log in dispatcher, available levels are debug, info, warn, error.
 func InitSetLogLevel(logLevel string) model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) { d.LogLevel = logLevel })
+}
+
+func InitEnableSaramaLog() model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.EnableSaramaLog = true })
+}
+
+func InitSetMonitorHost(host string) model.Option {
+	return model.FuncOption(func(d *model.Dispatcher) { d.MonitorHost = glob.CorrectUrl(host) })
 }

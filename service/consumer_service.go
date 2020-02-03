@@ -3,7 +3,6 @@ package service
 import (
 	"github.com/pkg/errors"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
-	"strings"
 	"sync"
 	"time"
 
@@ -112,7 +111,7 @@ func (c *Consumer) consume() (errChan chan error) {
 func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, lagCountHandler func(lagCount int), lagCountInterval time.Duration, isMarkOffsetOnError bool) (dispatcherConsumer *Consumer, err error) {
 
 	// Create consumer group for each topic
-	formattedGroupID := s.formatGroupID(topic, groupID)
+	formattedGroupID := glob.FormatGroupID(topic, groupID)
 
 	// Create topic
 	err = s.createTopic(topic, formattedGroupID)
@@ -189,12 +188,4 @@ func (s *consumerService) addToSubscribingTopics(topic, groupID string) {
 func (s *consumerService) removeSubscribingTopic(topic, groupID string) {
 	s.subscriptions.Delete(topic + groupID)
 	TopicService.RemoveMapEntry(topic)
-}
-
-func (s *consumerService) formatGroupID(topic, groupID string) string {
-	if strings.TrimSpace(groupID) == "" {
-		groupID = core.Config.DefaultGroupID
-	}
-	groupID = glob.AppendSuffix(groupID, topic, ":")
-	return groupID
 }
