@@ -104,7 +104,7 @@ func (c *Consumer) monitorLagCount() {
 			var lagCount int
 			// Get lag count from API
 			c.LagCountHandler(lagCount)
-			core.Logger.Infof("Lag count: %v, topic: %v, consumerID: %v\n", lagCount, c.Topic, c.GroupID)
+			core.Logger.Debugf("Lag count: %v, topic: %v, consumerID: %v\n", lagCount, c.Topic, c.GroupID)
 		case <-c.ctx.Done():
 			return
 		}

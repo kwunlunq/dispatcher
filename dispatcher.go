@@ -26,9 +26,32 @@ func Subscribe(topic string, callback model.BytesConsumerCallback, opts ...model
 	return
 }
 
+// Subscribe receive messages(dispatcher.Message) of the specified topic.
+func SubscribeMessage(topic string, callback func(Message) error, opts ...model.Option) (ctrl *SubscriberCtrl, err error) {
+	messageCallback := func(message model.Message) error {
+		return callback(APIMessageFromMessage(message))
+	}
+	c, err := service.ConsumerService.SubscribeMessage(topic, messageCallback, opts...)
+	if err != nil {
+		return
+	}
+	ctrl = &SubscriberCtrl{errors: c.ConsumeErrChan, cancelFunc: c.CancelConsume}
+	return
+}
+
 // SubscribeWithRetry receive messages until error count meet specified number.
 func SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *SubscriberWithRetryCtrl) {
 	sCtrl := service.ConsumerService.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration, opts...)
+	ctrl = &SubscriberWithRetryCtrl{sCtrl: *sCtrl, GroupID: sCtrl.GroupID}
+	return
+}
+
+// SubscribeWithRetryMessage receive messages(dispatcher.Message) until error count meet specified number.
+func SubscribeWithRetryMessage(topic string, callback func(Message) error, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *SubscriberWithRetryCtrl) {
+	messageCallback := func(message model.Message) error {
+		return callback(APIMessageFromMessage(message))
+	}
+	sCtrl := service.ConsumerService.SubscribeWithRetryMessage(topic, messageCallback, failRetryLimit, getRetryDuration, opts...)
 	ctrl = &SubscriberWithRetryCtrl{sCtrl: *sCtrl, GroupID: sCtrl.GroupID}
 	return
 }

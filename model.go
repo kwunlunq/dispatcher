@@ -62,3 +62,5 @@ func (c *SubscriberWithRetryCtrl) Errors() <-chan error {
 
 // ConsumeStatus
 type ConsumeStatus model.ConsumeStatus
+
+type MessageConsumerCallback func(message Message) error

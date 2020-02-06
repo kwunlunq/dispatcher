@@ -55,7 +55,7 @@ func (cr *consumerWithRetry) Do(callback model.MessageConsumerCallback, opts ...
 func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...model.Option) {
 	for {
 		// Create consumer & start consuming (non-blocking)
-		consumer, creationErr := ConsumerService.SubscribeWithMessageCallback(cr.topic, callback, opts...)
+		consumer, creationErr := ConsumerService.SubscribeMessage(cr.topic, callback, opts...)
 		if consumer != nil {
 			cr.controller.GroupID = consumer.GroupID
 		}

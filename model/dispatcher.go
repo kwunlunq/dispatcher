@@ -47,6 +47,7 @@ func MakeDispatcher(opts []Option) Dispatcher {
 	glob.SetIfZero(d, "DefaultGroupID", glob.GenDefaultGroupID())
 	glob.SetIfZero(d, "ConsumerAsyncNum", 1)
 	glob.SetIfZero(d, "ConsumerLagCountInterval", int64(time.Duration(10*time.Second)))
+	glob.SetIfZero(d, "LogLevel", "error")
 	return *d
 }
 func (d Dispatcher) ToCoreConfig() core.CoreConfig {

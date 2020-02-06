@@ -20,11 +20,11 @@ type consumerService struct {
 }
 
 func (s *consumerService) Subscribe(topic string, callback model.BytesConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
-	consumer, err = s.SubscribeWithMessageCallback(topic, callback.Wrap(), opts...)
+	consumer, err = s.SubscribeMessage(topic, callback.Wrap(), opts...)
 	return
 }
 
-func (s *consumerService) SubscribeWithMessageCallback(topic string, callback model.MessageConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
+func (s *consumerService) SubscribeMessage(topic string, callback model.MessageConsumerCallback, opts ...model.Option) (consumer *Consumer, err error) {
 	if !core.IsInitialized() {
 		err = model.ErrNotInitialized
 		return
@@ -39,6 +39,13 @@ func (s *consumerService) SubscribeWithMessageCallback(topic string, callback mo
 func (s *consumerService) SubscribeWithRetry(topic string, callback model.BytesConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *ConsumerWithRetryCtrl) {
 	consumerWithRetry := NewConsumerWithRetry(topic, failRetryLimit, getRetryDuration)
 	consumerWithRetry.Do(callback.Wrap(), opts...)
+	ctrl = &consumerWithRetry.controller
+	return
+}
+
+func (s *consumerService) SubscribeWithRetryMessage(topic string, callback model.MessageConsumerCallback, failRetryLimit int, getRetryDuration func(failCount int) time.Duration, opts ...model.Option) (ctrl *ConsumerWithRetryCtrl) {
+	consumerWithRetry := NewConsumerWithRetry(topic, failRetryLimit, getRetryDuration)
+	consumerWithRetry.Do(callback, opts...)
 	ctrl = &consumerWithRetry.controller
 	return
 }

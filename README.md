@@ -65,6 +65,29 @@ dispatcher.SubscribeWithRetry(topic, callback, failRetryLimit, getRetryDuration,
   - `GroupID` 實際監聽使用的consumer group id
 - `opts`: 同Subscribe的參數
 
+```go
+dispatcher.SubscribeWithRetryMessage(topic, messageCallback, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100)) (ctrl *SubscriberWithRetryCtrl)
+```
+- 功能同`SubscribeWithRetry`, 但將callback改為吃dispatcher.Message物件, 除了原本的[]byte資料外, 提供包含了`offset`, `partition`, `producerSentTime`...等其他資訊
+
+dispatcher.Message
+```go
+type Message struct {
+	TaskID               string // 任務ID, 訊息編號
+	Topic                string
+	Key                  string
+	Value                []byte // 原始訊息
+	Partition            int32  // 訊息被分送到的partition
+	Offset               int64  // 訊息在partition中的序號
+	ConsumerErrorStr     string // Consumer執行callback時發生的error
+	ConsumerGroupID      string // 收到這筆訊息的consumer group id
+	ProducerSentTime     time.Time
+	ConsumerReceivedTime time.Time
+	ConsumerFinishTime   time.Time
+	ProducerReceivedTime time.Time
+}
+```
+
 ### 監聽消費狀況
 ```go
 dispatcher.GetConsumeStatusByGroupID(_topic, _groupID) (status ConsumeStatus, err error)

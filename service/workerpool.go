@@ -24,6 +24,7 @@ type WorkerPool interface {
 	AddJob(job *sarama.ConsumerMessage)
 	Processed() <-chan *sarama.ConsumerMessage
 	Context() context.Context
+	setConsumerGroupSession(sess sarama.ConsumerGroupSession)
 }
 
 type workerPool struct {
@@ -35,6 +36,7 @@ type workerPool struct {
 	errors              chan model.Message
 	replies             chan model.Message
 	isMarkOffsetOnError bool
+	sess                sarama.ConsumerGroupSession
 }
 
 func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string, isMarkOffsetOnError bool) WorkerPool {
@@ -51,8 +53,8 @@ func (poolService workerPoolService) MakeWorkerPool(ctx context.Context, poolSiz
 	return pool
 }
 
-func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string, isMarkOffsetOnError bool) workerPool {
-	return workerPool{
+func (poolService workerPoolService) new(ctx context.Context, poolSize int, callback model.MessageConsumerCallback, groupID string, isMarkOffsetOnError bool) *workerPool {
+	return &workerPool{
 		jobs:                make(chan *sarama.ConsumerMessage),
 		processedMessages:   make(chan *sarama.ConsumerMessage, poolSize),
 		errors:              make(chan model.Message, poolSize),
@@ -64,19 +66,19 @@ func (poolService workerPoolService) new(ctx context.Context, poolSize int, call
 	}
 }
 
-func (p workerPool) AddJob(job *sarama.ConsumerMessage) {
+func (p *workerPool) AddJob(job *sarama.ConsumerMessage) {
 	p.jobs <- job
 }
 
-func (p workerPool) Processed() <-chan *sarama.ConsumerMessage {
+func (p *workerPool) Processed() <-chan *sarama.ConsumerMessage {
 	return p.processedMessages
 }
 
-func (p workerPool) Context() context.Context {
+func (p *workerPool) Context() context.Context {
 	return p.ctx
 }
 
-func (p workerPool) newWorker(id int) {
+func (p *workerPool) newWorker(id int) {
 
 	workerID := fmt.Sprintf("%v-%v", core.ProjectName, id)
 	core.Logger.Debugf("Worker [%v] starts working ...", workerID)
@@ -92,7 +94,7 @@ func (p workerPool) newWorker(id int) {
 	}
 }
 
-func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
+func (p *workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 
 	core.Logger.Debugf("(Worker[%v]) Received message from topic: [%v, %v-%v], msg: %v", workerID, saramaMsg.Topic, saramaMsg.Partition, saramaMsg.Offset, glob.TrimBytes(saramaMsg.Value))
 
@@ -125,7 +127,7 @@ func (p workerPool) doJob(workerID string, saramaMsg *sarama.ConsumerMessage) {
 }
 
 // parse 解析收到訊息, 目前因相容舊版訊息格式, 不會有error發生 (解析失敗時放進message.Value)
-func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Message, err error) {
+func (p *workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Message, err error) {
 	err = json.Unmarshal(saramaMsg.Value, &message)
 	if err != nil {
 		core.Logger.Error("Err parsing json message: ", string(saramaMsg.Value))
@@ -148,7 +150,7 @@ func (p workerPool) parse(saramaMsg *sarama.ConsumerMessage) (message model.Mess
 	return
 }
 
-func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriTopic string) string) {
+func (p *workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriTopic string) string) {
 	for message := range messagesChan {
 		go func(thisMessage model.Message) {
 			// 僅回送一次
@@ -166,11 +168,13 @@ func (p workerPool) sendBack(messagesChan chan model.Message, getTopic func(oriT
 	}
 }
 
-func (p workerPool) done(job *sarama.ConsumerMessage) {
-	p.processedMessages <- job
+func (p *workerPool) done(job *sarama.ConsumerMessage) {
+	p.sess.MarkMessage(job, "")
+	core.Logger.Debugf("Message of partition [%v], offset [%v] marked", job.Partition, job.Offset)
+	//p.processedMessages <- job
 }
 
-func (p workerPool) processMessage(workerID string, message model.Message) (err error) {
+func (p *workerPool) processMessage(workerID string, message model.Message) (err error) {
 
 	// Catch panic on custom callback
 	defer func() {
@@ -190,7 +194,7 @@ func (p workerPool) processMessage(workerID string, message model.Message) (err 
 	return
 }
 
-func (p workerPool) parseCompatibleMessage(message *model.Message, saramaMsgVal []byte) {
+func (p *workerPool) parseCompatibleMessage(message *model.Message, saramaMsgVal []byte) {
 	if message.TaskID == "" {
 		// 舊版error-message格式: model.ConsumerCallbackError
 		var tmp model.ConsumerCallbackError
@@ -203,4 +207,8 @@ func (p workerPool) parseCompatibleMessage(message *model.Message, saramaMsgVal 
 			message.Value = saramaMsgVal
 		}
 	}
+}
+
+func (p *workerPool) setConsumerGroupSession(sess sarama.ConsumerGroupSession) {
+	p.sess = sess
 }

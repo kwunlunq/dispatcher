@@ -5,9 +5,15 @@
 Features:
 - 增加取得consume status接口 GetConsumeStatusByGroupID(), 使用前須在init提供monitorHost: InitSetMonitorHost
 - 增加顯示sarama內部log開關: InitEnableSaramaLog()
-
+- 增加2個訂閱接口, 將原本的callback改為吃dispatcher.Message, 除了原本的[]byte資料外, 提供包含了`offset`, `partition`, `producerSentTime`...等其他資訊:
+  - `SubscribeMessage`
+  - `SubscribeWithRetryMessage`
 Improvements:
 - SubscriberWithRetryCtrl增加欄位: `GroupID`取得實際監聽使用的consumer group id
+- 減低不必要goroutine
+
+Minor:
+- log預設層級調高至error, 若需顯示原有log則在初始化時帶參數`InitSetLogLevel("info")`
 
 ### Version 1.12.0 (2020-01-15)
 

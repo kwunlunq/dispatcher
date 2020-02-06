@@ -32,7 +32,7 @@ func main() {
 
 	start := time.Now()
 
-	Integration("dispatcher.example.testing", 1000, 1, 1)
+	Integration("dispatcher.example.testing", 200, 1, 1)
 	//MultipleTopics("dispatcher.example.testing", 20, 10000, 1, 1)
 
 	printResult(start)
@@ -61,7 +61,7 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 	for i := 1; i <= consumerCount; i++ {
 		groupID := _groupIDPrefix + strconv.Itoa(i)
 		go consume(topic, groupID)
-		//go monitorLagStatus(topic, groupID)
+		go monitorLagStatus(topic, groupID)
 	}
 
 	waitComplete()
@@ -89,8 +89,9 @@ func consume(topic, groupID string) {
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
-	subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
+	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID), dispatcher.ConsumerNotCommitOnError())
+	subscriberCtrl := dispatcher.SubscribeWithRetryMessage(topic, msgHandlerMessage, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 
 	go func() {
 		err := <-subscriberCtrl.Errors()
@@ -123,6 +124,14 @@ func msgHandler(value []byte) error {
 		fmt.Printf("MSG | %v/%v | %v \n", atomic.LoadUint64(&_received), _expectedReceived, string(value))
 	}
 	return errors.New("錯誤: 測試錯誤, 訊息: " + string(value))
+}
+
+func msgHandlerMessage(msg dispatcher.Message) error {
+	atomic.AddUint64(&_received, 1)
+	if _showExampleLog {
+		fmt.Printf("MSG | %v/%v | %v \n", atomic.LoadUint64(&_received), _expectedReceived, string(msg.Value))
+	}
+	return errors.New("錯誤: 測試錯誤, 訊息: " + string(msg.Value))
 }
 
 func errorHandler(value []byte, err error) {

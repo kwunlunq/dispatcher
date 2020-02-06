@@ -8,20 +8,23 @@ import (
 )
 
 var (
-	_brokers = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
-	_topic   = "dispatcher.example.testing"
-	_groupID = "example.producer"
+	_brokers      = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
+	_topic        = "dispatcher.example.testing"
+	_groupID      = "example.producer"
+	_messageCount = 5000
+	_logLevel     = "info"
 )
 
 func main() {
-	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID))
+	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID), dispatcher.InitSetLogLevel(_logLevel))
+	start := time.Now()
 	var wg sync.WaitGroup
-	for i := 1; i <= 50; i++ {
+	for i := 1; i <= _messageCount; i++ {
 		wg.Add(1)
 		go send(i, &wg)
 	}
 	wg.Wait()
-	fmt.Println("Finished")
+	fmt.Printf("%v message sent in %v s\n", _messageCount, time.Now().Sub(start).Seconds())
 	time.Sleep(time.Second)
 }
 
