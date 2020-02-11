@@ -84,7 +84,7 @@ func (cr *consumerWithRetry) do(callback model.MessageConsumerCallback, opts ...
 	}
 }
 
-func (cr *consumerWithRetry) handleCreationError(createErr error) (isContinue bool) {
+func (cr *consumerWithRetry) handleCreationError(createErr error) (isContinueRetry bool) {
 
 	if errors.Cause(createErr) == model.ErrSubscribeOnSubscribedTopic {
 		core.Logger.Debugf("Stop create consumer, topic [%v] is already subscribing", cr.consumer.Topic)
@@ -99,7 +99,7 @@ func (cr *consumerWithRetry) handleCreationError(createErr error) (isContinue bo
 		return
 	}
 
-	isContinue = true
+	isContinueRetry = true
 	cr.sleep()
 	return
 }
@@ -114,17 +114,17 @@ func (cr *consumerWithRetry) reachErrorLimit(err error) (isReachLimit bool) {
 	return
 }
 
-func (cr *consumerWithRetry) handleConsumeError(consumeErr error) (ok bool) {
+func (cr *consumerWithRetry) handleConsumeError(consumeErr error) (isContinueRetry bool) {
 	if consumeErr != nil {
 		cr.failCount++
 		core.Logger.Errorf("Error during consumption: [%v], counting [%v], topic [%v], groupID [%v]", consumeErr.Error(), cr.failCount, cr.consumer.Topic, cr.consumer.GroupID)
 		if cr.reachErrorLimit(consumeErr) {
-			ok = false
 			return
 		}
 	} else {
 		core.Logger.Error("Consumer terminated without error")
 	}
+	isContinueRetry = true
 	cr.sleep()
 	return
 }

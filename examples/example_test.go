@@ -16,12 +16,12 @@ func TestIntegration(t *testing.T) {
 		name string
 		args args
 	}{
-		{"5 Messages, 1 x 1", args{"dispatcher.example.testing", 5, 1, 1}},
-		{"50 Messages 1 x 1", args{"dispatcher.example.testing", 50, 1, 1}},
-		{"1k Messages 1 x 1", args{"dispatcher.example.testing", 1000, 1, 1}},
-		{"100 Messages 1 x 2", args{"dispatcher.example.testing", 100, 1, 2}},
-		{"100 Messages 2 x 1", args{"dispatcher.example.testing", 100, 2, 1}},
-		{"100 Messages 2 x 2", args{"dispatcher.example.testing", 100, 2, 2}},
+		{"5 Messages, 1 x 1", args{"dispatcher.example.test.1", 5, 1, 1}},
+		{"50 Messages 1 x 1", args{"dispatcher.example.test.2", 50, 1, 1}},
+		{"1k Messages 1 x 1", args{"dispatcher.example.test.3", 1000, 1, 1}},
+		{"100 Messages 1 x 2", args{"dispatcher.example.test.4", 100, 1, 2}},
+		{"100 Messages 2 x 1", args{"dispatcher.example.test.5", 100, 2, 1}},
+		{"100 Messages 2 x 2", args{"dispatcher.example.test.6", 100, 2, 2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

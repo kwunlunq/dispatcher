@@ -7,7 +7,6 @@ import (
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob/core"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"sync"
-	"time"
 )
 
 type Consumer struct {
@@ -16,21 +15,23 @@ type Consumer struct {
 	ConsumeErrChan   chan error
 	CancelConsume    context.CancelFunc
 	CancelWorkerPool context.CancelFunc
-	LagCountHandler  func(lagCount int)
-	LagCountInterval time.Duration
 
-	ctx                      context.Context
-	closeOnce                sync.Once
-	handler                  consumerHandlerSarama
-	saramaConsumer           sarama.ConsumerGroup
-	saramaConsumerCancelFunc context.CancelFunc
+	ctx            context.Context
+	closeOnce      sync.Once
+	handler        consumerHandlerSarama
+	saramaConsumer sarama.ConsumerGroup
+	saramaCtx      context.Context
+	saramaCancel   context.CancelFunc
+	closed         chan struct{}
 }
 
-func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, lagCountHandler func(lagCount int), lagCountInterval time.Duration, isMarkOffsetOnError bool) *Consumer {
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, isMarkOffsetOnError bool) *Consumer {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wpCtx, wpCancel := context.WithCancel(context.Background())
+
+	saramaCtx, saramaCancel := context.WithCancel(context.Background())
 
 	started := make(chan struct{}, 1)
 	handler := consumerHandlerSarama{
@@ -45,12 +46,13 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int
 		GroupID:          groupID,
 		ConsumeErrChan:   consumeErrChan,
 		handler:          handler,
+		ctx:              ctx,
 		CancelConsume:    cancel,
 		CancelWorkerPool: wpCancel,
-		ctx:              ctx,
 		saramaConsumer:   group,
-		LagCountHandler:  lagCountHandler,
-		LagCountInterval: lagCountInterval,
+		saramaCancel:     saramaCancel,
+		saramaCtx:        saramaCtx,
+		closed:           make(chan struct{}),
 	}
 }
 
@@ -81,6 +83,9 @@ func (c *Consumer) close(err error) {
 		}
 		close(c.ConsumeErrChan)
 
+		// Notify consumer been closed
+		close(c.closed)
+
 		core.Logger.Debugf("Consumer closed: [%v], topic [%v], groupID [%v]", err, c.Topic, c.GroupID)
 	})
 	return
@@ -92,21 +97,6 @@ func (c *Consumer) closeSaramaConsumer() {
 	}
 	err := c.saramaConsumer.Close()
 	if err != nil {
-		core.Logger.Errorf("Error closing consumer of topic [%v], groupID [%v], err [%v]", c.Topic, c.GroupID, err)
-	}
-}
-
-func (c *Consumer) monitorLagCount() {
-	ticker := time.NewTicker(c.LagCountInterval)
-	for {
-		select {
-		case <-ticker.C:
-			var lagCount int
-			// Get lag count from API
-			c.LagCountHandler(lagCount)
-			core.Logger.Debugf("Lag count: %v, topic: %v, consumerID: %v\n", lagCount, c.Topic, c.GroupID)
-		case <-c.ctx.Done():
-			return
-		}
+		core.Logger.Debugf("Error closing consumer of topic [%v], groupID [%v], err [%v]", c.Topic, c.GroupID, err)
 	}
 }

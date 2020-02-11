@@ -67,7 +67,11 @@ func (d Dispatcher) ToSaramaConfig() (config *sarama.Config) {
 	//timeout := d.KafkaConfig.Timeout
 
 	// Net
-	//config.Net.DialTimeout = timeout  // default 30s
+	config.Net.DialTimeout = 10 * time.Second // default 30s
+
+	// Metadata
+	//config.Metadata.Retry.Max = // default 3
+	//config.Backoff =  // default 250ms
 
 	// Producer
 	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message

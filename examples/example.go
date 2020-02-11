@@ -32,7 +32,7 @@ func main() {
 
 	start := time.Now()
 
-	Integration("dispatcher.example.testing", 200, 1, 1)
+	Integration("dispatcher.example", 200, 1, 1)
 	//MultipleTopics("dispatcher.example.testing", 20, 10000, 1, 1)
 
 	printResult(start)

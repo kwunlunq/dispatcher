@@ -10,6 +10,7 @@ import (
 var (
 	_brokers      = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_topic        = "dispatcher.example.testing"
+	_topic        = "dispatcher.example"
 	_groupID      = "example.producer"
 	_messageCount = 5000
 	_logLevel     = "info"

@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.13.1
+
+Bug Fixes:
+- 修復SubscribeWIthRetry可能無法重新連線問題
+
 ### Version 1.13.0
 
 Features:
