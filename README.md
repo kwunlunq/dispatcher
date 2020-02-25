@@ -94,6 +94,11 @@ dispatcher.GetConsumeStatusByGroupID(_topic, _groupID) (status ConsumeStatus, er
 ````
 `ConsumeStatus` 包含 `GroupID` 及 `LagCount`
 
+### 刪除topic
+```go
+dispatcher.RemoveTopics(_topicsToRemoved...) error
+```
+
 ### 可用選項
 
 各API提供可選設定做為非必要參數, 所有可用的選項參見 [options.go](./options.go)

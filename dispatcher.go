@@ -63,6 +63,10 @@ func GetConsumeStatusByGroupID(topic, groupID string) (status ConsumeStatus, err
 	return
 }
 
+func RemoveTopics(topics ...string) (err error) {
+	return service.TopicService.Remove(topics...)
+}
+
 // TODO
 func GetConsumeStatus(topic string) (list []ConsumeStatus) {
 	return

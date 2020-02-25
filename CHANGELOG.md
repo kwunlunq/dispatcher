@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 1.13.2
+
+Features:
+- 增加topic刪除接口: `dispatcher.RemoveTopics(_topicsToRemoved...) error`
+
 ### Version 1.13.1
 
 Bug Fixes:

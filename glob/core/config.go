@@ -2,7 +2,6 @@ package core
 
 import (
 	"github.com/Shopify/sarama"
-	"log"
 )
 
 const ProjectName = "dispatcher"
@@ -40,9 +39,6 @@ func InitSaramaConfig(tmpC *sarama.Config) {
 	SaramaConfig = *tmpC
 }
 func IsInitialized() bool {
-	if !Config.IsInitialized {
-		log.Println("dispatcher hasn't initialized!")
-	}
 	return Config.IsInitialized
 }
 

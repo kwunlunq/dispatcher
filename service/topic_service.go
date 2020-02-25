@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/pkg/errors"
 	"gitlab.paradise-soft.com.tw/glob/dispatcher/glob"
+	"gitlab.paradise-soft.com.tw/glob/dispatcher/model"
 	"strconv"
 	"sync"
 	"time"
@@ -15,8 +16,8 @@ import (
 var TopicService = &topicService{lock: &sync.Mutex{}}
 
 type topicService struct {
-	topics sync.Map
-	lock   *sync.Mutex
+	createdTopics sync.Map
+	lock          *sync.Mutex
 }
 
 func (s *topicService) Create(topic string) (err error) {
@@ -30,13 +31,17 @@ func (s *topicService) Create(topic string) (err error) {
 				return
 			}
 			core.Logger.Debug("Topic created: ", topic)
-			s.topics.Store(topic, struct{}{})
+			s.createdTopics.Store(topic, struct{}{})
 		}
 	}
 	return nil
 }
 
 func (s *topicService) Remove(topics ...string) (err error) {
+	if !core.IsInitialized() {
+		return model.ErrNotInitialized
+	}
+
 	client, err := ClientService.Get()
 	if err != nil {
 		err = errors.Wrap(err, "remove topic error")
@@ -45,28 +50,25 @@ func (s *topicService) Remove(topics ...string) (err error) {
 	broker, err := client.Controller()
 	if err != nil {
 		err = errors.Wrap(err, "remove topic error")
-		//core.Logger.Errorf("Error retrieving broker: %v", err.Error())
 		return
 	}
 	_, err = broker.Connected()
 	if err != nil {
 		err = errors.Wrap(err, "remove topic error")
-		//core.Logger.Errorf("Error connecting by broker: %v", err.Error())
 		return
 	}
 	request := &sarama.DeleteTopicsRequest{
-		Timeout: time.Second * 15,
+		Timeout: time.Second * 30,
 		Topics:  topics,
 	}
 	_, err = broker.DeleteTopics(request)
 	if err != nil {
 		err = errors.Wrap(err, "remove topic error")
-		//core.Logger.Errorf("Error deleting topic: %v", err.Error())
 		return
 	}
 
 	for _, topic := range topics {
-		s.topics.Delete(topic)
+		s.createdTopics.Delete(topic)
 	}
 
 	core.Logger.Debugf("Topics %v deleted", topics)
@@ -74,7 +76,7 @@ func (s *topicService) Remove(topics ...string) (err error) {
 }
 
 func (s *topicService) checkExisted(topic string) (existed bool) {
-	_, existed = s.topics.Load(topic)
+	_, existed = s.createdTopics.Load(topic)
 	return
 }
 
@@ -95,7 +97,7 @@ func (s *topicService) List() (topics []string) {
 }
 
 func (s *topicService) RemoveMapEntry(topic string) {
-	s.topics.Delete(topic)
+	s.createdTopics.Delete(topic)
 }
 
 func (s *topicService) create(topic string) (err error) {

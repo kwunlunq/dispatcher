@@ -19,10 +19,9 @@ var (
 	_brokers                                   = []string{"10.200.252.180:9092", "10.200.252.181:9092", "10.200.252.182:9092"}
 	_defaultGroupID                            = ""
 	_groupIDPrefix                             = "example.integration."
-	//_topic                                   = "dispatcher.example.testing"
-	_logLevel       = "info"
-	_showExampleLog = true
-	_monitorHost    = "10.200.252.184:7777"
+	_logLevel                                  = "info"
+	_showExampleLog                            = true
+	_monitorHost                               = "10.200.252.184:7777"
 )
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 	start := time.Now()
 
 	Integration("dispatcher.example", 200, 1, 1)
-	//MultipleTopics("dispatcher.example.testing", 20, 10000, 1, 1)
+	//MultipleTopics("dispatcher.example", 20, 10000, 1, 1)
 
 	printResult(start)
 	time.Sleep(time.Second) // Wait for offsets to be marked
@@ -72,8 +71,6 @@ func send(topic string, producerID, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
 		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
 		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
-		//err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler))
-		//_ = dispatcher.Send(_topic, msg)
 		if err != nil {
 			fmt.Println("Err sending message:", err)
 			continue
@@ -89,7 +86,6 @@ func consume(topic, groupID string) {
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
-	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID), dispatcher.ConsumerNotCommitOnError())
 	subscriberCtrl := dispatcher.SubscribeWithRetryMessage(topic, msgHandlerMessage, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 
