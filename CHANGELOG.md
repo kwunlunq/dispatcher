@@ -1,5 +1,13 @@
 # Changelog
 
+### Version 1.13.3
+
+Improvements:
+- 升級sarama版本: 1.22.1 > 1.26.1 (2020-02-04)
+- 因metadata資訊落後導致發送訊息失敗時, 重新刷新metadata資訊
+- 增加sarama重試metadata次數&時間
+- 增加admin client timeout時間 (3s > 10s)
+      
 ### Version 1.13.2
 
 Features:

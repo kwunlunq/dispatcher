@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/Shopify/sarama"
+	"time"
 )
 
 const ProjectName = "dispatcher"
@@ -25,7 +26,15 @@ type KafkaConfig struct {
 	TopicReplicationNum int
 	MinInsyncReplicas   int
 	MsgMaxBytes         int
-	//Timeout             time.Duration `json:"-"`
+	Timeout             KafkaConfigTimeout
+}
+
+type KafkaConfigTimeout struct {
+	Client                   time.Duration
+	Producer                 time.Duration
+	Consumer                 time.Duration
+	MetadataRefreshFrequency time.Duration
+	MetadataBackoff          time.Duration
 }
 
 func InitConfig(brokers []string, c CoreConfig) {

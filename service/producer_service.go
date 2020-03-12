@@ -105,6 +105,9 @@ func (p *producerService) sendSaramaMessage(message model.Message) (err error) {
 		return
 	case err = <-p.producer.Errors():
 		core.Logger.Errorf("Failed to produce message: %v, len: %v", err, len(messageBytes))
+		if err == sarama.ErrNotLeaderForPartition {
+			ClientService.Refresh()
+		}
 		return
 	}
 }

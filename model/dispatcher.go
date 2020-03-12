@@ -62,16 +62,15 @@ func (d Dispatcher) ToSaramaConfig() (config *sarama.Config) {
 	config = sarama.NewConfig()
 	config.Version = sarama.V2_1_0_0 // To enable consumer group, but will cause disable of 'auto.create.topic'
 
-	// TODO: 釋出所有timeout設定值
-
-	//timeout := d.KafkaConfig.Timeout
+	config.Admin.Timeout = 10 * time.Second // default 3s
 
 	// Net
 	config.Net.DialTimeout = 10 * time.Second // default 30s
 
 	// Metadata
-	//config.Metadata.Retry.Max = // default 3
-	//config.Backoff =  // default 250ms
+	config.Metadata.Retry.Max = 5                          // default 3
+	config.Metadata.Retry.Backoff = 500 * time.Millisecond // default 250ms
+	config.Metadata.RefreshFrequency = time.Minute         // default 10m
 
 	// Producer
 	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message

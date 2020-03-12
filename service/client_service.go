@@ -37,6 +37,16 @@ func (s *clientService) Get() (client sarama.Client, err error) {
 	return
 }
 
+func (s *clientService) Refresh() {
+	if s.client == nil {
+		return
+	}
+	err := s.client.RefreshMetadata()
+	if err != nil {
+		core.Logger.Error("Error refreshing metadata: ", err)
+	}
+}
+
 func (s *clientService) create() (client sarama.Client, err error) {
 	// TODO: add timeout
 	client, err = sarama.NewClient(core.Config.Brokers, &core.SaramaConfig)
