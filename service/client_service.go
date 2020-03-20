@@ -37,7 +37,22 @@ func (s *clientService) Get() (client sarama.Client, err error) {
 	return
 }
 
-func (s *clientService) Refresh() {
+func (s *clientService) Reconnect() {
+	err := s.client.Close()
+	if err != nil {
+		core.Logger.Error("Err closing client during reconnecting: " + err.Error())
+		return
+	}
+	newClient, err := s.create()
+	if err != nil {
+		core.Logger.Error("Err creating client: " + err.Error())
+		return
+	}
+	s.client = newClient
+	core.Logger.Info("kafka client reconnected")
+}
+
+func (s *clientService) RefreshMetadata() {
 	if s.client == nil {
 		return
 	}

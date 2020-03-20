@@ -22,6 +22,7 @@ var ProducerService = &producerService{lock: &sync.Mutex{}}
 type producerService struct {
 	producer   sarama.AsyncProducer
 	lock       *sync.Mutex
+	tryLock    glob.TryLocker
 	replyTasks sync.Map
 }
 
@@ -62,7 +63,7 @@ func (p *producerService) send(message model.Message) (err error) {
 	}
 
 	// Get/Create producer
-	err = p.createProducer()
+	err = p.createOnce()
 	if err != nil {
 		return
 	}
@@ -76,7 +77,7 @@ func (p *producerService) sendSaramaMessage(message model.Message) (err error) {
 	// Close producer if panic
 	defer func() {
 		if r := recover(); r != nil {
-			core.Logger.Errorf("Closing producer due to panic: %v", r)
+			core.Logger.Errorf("Closing producer due to panic: %v\n%v", r, string(debug.Stack()))
 			p.close()
 		}
 	}()
@@ -99,50 +100,78 @@ func (p *producerService) sendSaramaMessage(message model.Message) (err error) {
 	// Wait ack
 	select {
 	case saramaMessage = <-p.producer.Successes():
+		if saramaMessage == nil {
+			return
+		}
 		message.Partition = saramaMessage.Partition
 		message.Offset = saramaMessage.Offset
 		core.Logger.Debugf("Message sent: topic: %v, partition: %v, offset: %v, key: %v, message-val: %v", message.Topic, message.Partition, message.Offset, message.Key, glob.TrimBytes(message.Value))
 		return
 	case err = <-p.producer.Errors():
-		core.Logger.Errorf("Failed to produce message: %v, len: %v", err, len(messageBytes))
-		if err == sarama.ErrNotLeaderForPartition {
-			ClientService.Refresh()
+		core.Logger.Errorf("Failed to produce message, err: %v, len: %v", err, len(messageBytes))
+		renewErr := p.renewClient()
+		if renewErr != nil {
+			err = wraperrors.Wrap(err, renewErr.Error())
 		}
 		return
 	}
 }
 
-func (p *producerService) createProducer() (err error) {
+func (p *producerService) createOnce() (err error) {
 	if p.producer == nil {
 		p.lock.Lock()
 		defer p.lock.Unlock()
 		if p.producer == nil {
-			// Create/Get client
-			var client sarama.Client
-			client, err = ClientService.Get()
-			if err != nil {
-				err = wraperrors.Wrap(err, "create producer error")
-				core.Logger.Errorf("Error creating Producer: %s", err)
-				return
-			}
-			// Create producer
-			p.producer, err = sarama.NewAsyncProducerFromClient(client)
-			core.Logger.Debugf("Producer created.")
-			if err != nil {
-				err = wraperrors.Wrap(err, "create producer error")
-				core.Logger.Errorf("Error creating Producer: %s", err)
-				return
-			}
+			p.producer, err = p.create()
 		}
 	}
 	return
 }
 
+func (p *producerService) create() (producer sarama.AsyncProducer, err error) {
+	// Create/Get client
+	var client sarama.Client
+	client, err = ClientService.GetNew()
+	if err != nil {
+		err = wraperrors.Wrap(err, "create producer error")
+		core.Logger.Errorf("Error creating Producer: %s", err)
+		return
+	}
+	// Create producer
+	producer, err = sarama.NewAsyncProducerFromClient(client)
+	core.Logger.Debugf("Producer created.")
+	if err != nil {
+		err = wraperrors.Wrap(err, "create producer error")
+		core.Logger.Errorf("Error creating Producer: %s", err)
+		return
+	}
+	return
+}
+
+func (p *producerService) renewClient() (err error) {
+	// allow only one in a once to renew client
+	isLockerGet := p.tryLock.Lock()
+	if !isLockerGet {
+		return
+	}
+	defer p.tryLock.Unlock()
+
+	// Create new
+	var newProducer sarama.AsyncProducer
+	newProducer, err = p.create()
+	if err != nil {
+		err = wraperrors.Wrap(err, "err renewing producer's client")
+		return
+	}
+	p.producer = newProducer
+	return
+}
+
 func (p *producerService) close() {
-	p.producer = nil
 	if err := p.producer.Close(); err != nil {
 		core.Logger.Errorf("Error closing producer: %v", err.Error())
 	}
+	p.producer = nil
 }
 
 func wrapProducerErrHandler(producerErrHandler model.ProducerCustomerErrHandler) model.MessageConsumerCallback {
@@ -206,7 +235,6 @@ func (p *producerService) handleReplyMessage() model.MessageConsumerCallback {
 func (p *producerService) scheduleDeleteExpiredTasks() func() {
 	checkInterval := 5 * time.Second
 	for {
-		core.Logger.Debugf("正在檢查過期tasks...")
 		checkStartTime := time.Now().UnixNano()
 		deletedCount := 0
 		count := 0
@@ -228,7 +256,6 @@ func (p *producerService) scheduleDeleteExpiredTasks() func() {
 			}
 			return true
 		})
-		core.Logger.Debugf("檢查完畢: 總共%d筆, 刪除%d筆", count, deletedCount)
 		if deletedCount > 0 {
 			core.Logger.Debugf("刪除過期的reply任務: %d筆, 總共 %d筆", deletedCount, count)
 		}
