@@ -29,6 +29,8 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:0815", nil))
 	}()
 
+	fmt.Println("test")
+
 	start := time.Now()
 
 	Integration("dispatcher.example", 200, 1, 1)
