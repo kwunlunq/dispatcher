@@ -16,6 +16,7 @@ var (
 )
 
 func main() {
+	fmt.Println("test")
 	_ = dispatcher.Init(_brokers, dispatcher.InitSetDefaultGroupID(_groupID), dispatcher.InitSetLogLevel(_logLevel))
 	start := time.Now()
 	var wg sync.WaitGroup
@@ -40,7 +41,7 @@ func send(i int, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-// Handle error from consumer
+// Handle errnor from consumer
 func errorHandler(value []byte, err error) {
 	fmt.Printf("Handle error from consumer: err: [%v], message: [%v]\n", err.Error(), string(value))
 }
