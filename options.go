@@ -61,10 +61,10 @@ func ConsumerMonitorLagCount(handler func(lagCount int), refreshInterval time.Du
 	})
 }
 
-// ConsumerNotCommitOnError
-func ConsumerNotCommitOnError() model.Option {
+// ConsumerStopOnCallbackError
+func ConsumerStopOnCallbackError() model.Option {
 	return model.FuncOption(func(d *model.Dispatcher) {
-		d.ConsumerIsCommitOffsetOnError = false
+		d.ConsumerIsStopOnCallbackError = true
 	})
 }
 

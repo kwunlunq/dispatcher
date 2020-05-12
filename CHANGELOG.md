@@ -1,5 +1,14 @@
 # Changelog
 
+### Version 1.14.0
+
+Improvements:
+- 移除option: `ConsumerNotCommitOnError`
+> 因commit offset只看最新一筆, 而不commit offset仍會消費新訊息, 新的offset會很快蓋掉未commit的offset, 因此直接移除此option(意義不大)
+- 新增option: `ConsumerStopOnCallbackError`
+> 在callback發生error時發送中斷監聽的訊號, 監聽仍會持續直到中斷完畢, 並且發送error到`Subscribe`/`SubscribeWithRetry`  
+> `SubscribeWithRetry`在收到callback error時回直接結束(否則會無限重試下去)
+
 ### Version 1.13.3
 
 Improvements:

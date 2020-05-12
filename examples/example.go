@@ -29,11 +29,9 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:0815", nil))
 	}()
 
-	fmt.Println("test")
-
 	start := time.Now()
 
-	Integration("dispatcher.example", 200, 1, 1)
+	Integration("dispatcher.example", 1000, 1, 1)
 	//MultipleTopics("dispatcher.example", 20, 10000, 1, 1)
 
 	printResult(start)
@@ -62,7 +60,7 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 	for i := 1; i <= consumerCount; i++ {
 		groupID := _groupIDPrefix + strconv.Itoa(i)
 		go consume(topic, groupID)
-		go monitorLagStatus(topic, groupID)
+		//go monitorLagStatus(topic, groupID)
 	}
 
 	waitComplete()
@@ -71,16 +69,20 @@ func Integration(topic string, testCount, producerCount, consumerCount int) (int
 
 func send(topic string, producerID, msgCount int) {
 	for i := 1; i <= msgCount; i++ {
-		msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
-		err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
-		if err != nil {
-			fmt.Println("Err sending message:", err)
-			continue
-		}
-		atomic.AddUint64(&_sent, 1)
-		if _showExampleLog {
-			fmt.Printf("Sent | %v/%v | %v\n", _sent, _expectedSent, string(msg))
-		}
+		go sendOneMsg(topic, producerID, i)
+	}
+}
+
+func sendOneMsg(topic string, producerID, i int) {
+	msg := []byte(fmt.Sprintf("msg-val-%v-%v-%v", producerID, i, time.Now().Format("15:04.999")))
+	err := dispatcher.Send(topic, msg, dispatcher.ProducerAddErrHandler(errorHandler), dispatcher.ProducerCollectReplyMessage(replyHandler, time.Minute))
+	if err != nil {
+		fmt.Println("Err sending message:", err)
+		return
+	}
+	atomic.AddUint64(&_sent, 1)
+	if _showExampleLog {
+		fmt.Printf("Sent | %v/%v | %v\n", _sent, _expectedSent, string(msg))
 	}
 }
 
@@ -88,7 +90,7 @@ func consume(topic, groupID string) {
 	failRetryLimit := 5
 	getRetryDuration := func(failCount int) time.Duration { return time.Duration(failCount) * time.Second }
 
-	//subscriberCtrl := dispatcher.SubscribeWithRetry(topic, msgHandler, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID), dispatcher.ConsumerNotCommitOnError())
+	//subscriberCtrl := dispatcher.SubscribeWithRetryMessage(topic, msgHandlerMessage, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID), dispatcher.ConsumerStopOnCallbackError())
 	subscriberCtrl := dispatcher.SubscribeWithRetryMessage(topic, msgHandlerMessage, failRetryLimit, getRetryDuration, dispatcher.ConsumerSetAsyncNum(100), dispatcher.ConsumerSetGroupID(groupID))
 
 	go func() {
@@ -124,12 +126,21 @@ func msgHandler(value []byte) error {
 	return errors.New("錯誤: 測試錯誤, 訊息: " + string(value))
 }
 
-func msgHandlerMessage(msg dispatcher.Message) error {
+func msgHandlerMessage(msg dispatcher.Message) (err error) {
 	atomic.AddUint64(&_received, 1)
 	if _showExampleLog {
-		fmt.Printf("MSG | %v/%v | %v \n", atomic.LoadUint64(&_received), _expectedReceived, string(msg.Value))
+		fmt.Printf("MSG | %v/%v | %v-%v | %v \n", atomic.LoadUint64(&_received), _expectedReceived, msg.Partition, msg.Offset, string(msg.Value))
 	}
-	return errors.New("錯誤: 測試錯誤, 訊息: " + string(msg.Value))
+	if atomic.LoadUint64(&_received) == 100 {
+		//fmt.Println("\nNo. 100 !!!\n")
+		//err = errors.New("錯誤: 測試錯誤, 訊息: " + string(msg.Value))
+	}
+	if atomic.LoadUint64(&_received) == 1 {
+		//fmt.Println("No. 1 !!!")
+		//err = errors.New("錯誤: 測試錯誤, 訊息: " + string(msg.Value))
+	}
+	err = errors.New("錯誤: 測試錯誤, 訊息: " + string(msg.Value))
+	return
 }
 
 func errorHandler(value []byte, err error) {

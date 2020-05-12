@@ -15,6 +15,7 @@ type Consumer struct {
 	ConsumeErrChan   chan error
 	CancelConsume    context.CancelFunc
 	CancelWorkerPool context.CancelFunc
+	CallbackErrors   chan error
 
 	ctx            context.Context
 	closeOnce      sync.Once
@@ -25,7 +26,7 @@ type Consumer struct {
 	closed         chan struct{}
 }
 
-func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, isMarkOffsetOnError bool) *Consumer {
+func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int, callback model.MessageConsumerCallback, isStopOnCallbackError bool) *Consumer {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -33,9 +34,11 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int
 
 	saramaCtx, saramaCancel := context.WithCancel(context.Background())
 
+	callbackErrors := make(chan error)
+
 	started := make(chan struct{}, 1)
 	handler := consumerHandlerSarama{
-		pool:        WorkerPoolService.MakeWorkerPool(wpCtx, asyncNum, callback, groupID, isMarkOffsetOnError),
+		pool:        WorkerPoolService.MakeWorkerPool(wpCtx, asyncNum, callback, groupID, isStopOnCallbackError, callbackErrors),
 		startedChan: started,
 	}
 
@@ -53,6 +56,7 @@ func newConsumer(group sarama.ConsumerGroup, topic, groupID string, asyncNum int
 		saramaCancel:     saramaCancel,
 		saramaCtx:        saramaCtx,
 		closed:           make(chan struct{}),
+		CallbackErrors:   callbackErrors,
 	}
 }
 

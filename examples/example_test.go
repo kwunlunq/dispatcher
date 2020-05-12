@@ -18,7 +18,7 @@ func TestIntegration(t *testing.T) {
 	}{
 		{"5 Messages, 1 x 1", args{"dispatcher.example.test.1", 5, 1, 1}},
 		{"50 Messages 1 x 1", args{"dispatcher.example.test.2", 50, 1, 1}},
-		{"1k Messages 1 x 1", args{"dispatcher.example.test.3", 1000, 1, 1}},
+		{"5k Messages 1 x 1", args{"dispatcher.example.test.3", 5000, 1, 1}},
 		{"100 Messages 1 x 2", args{"dispatcher.example.test.4", 100, 1, 2}},
 		{"100 Messages 2 x 1", args{"dispatcher.example.test.5", 100, 2, 1}},
 		{"100 Messages 2 x 2", args{"dispatcher.example.test.6", 100, 2, 2}},

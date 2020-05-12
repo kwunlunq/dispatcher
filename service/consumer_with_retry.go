@@ -116,6 +116,10 @@ func (cr *consumerWithRetry) reachErrorLimit(err error) (isReachLimit bool) {
 
 func (cr *consumerWithRetry) handleConsumeError(consumeErr error) (isContinueRetry bool) {
 	if consumeErr != nil {
+		if _, ok := errors.Cause(consumeErr).(*userCallbackError); ok {
+			core.Logger.Errorf("Error during consumption (callback error): [%v], topic [%v], groupID [%v]", consumeErr.Error(), cr.consumer.Topic, cr.consumer.GroupID)
+			return
+		}
 		cr.failCount++
 		core.Logger.Errorf("Error during consumption: [%v], counting [%v], topic [%v], groupID [%v]", consumeErr.Error(), cr.failCount, cr.consumer.Topic, cr.consumer.GroupID)
 		if cr.reachErrorLimit(consumeErr) {

@@ -50,7 +50,7 @@ dispatcher.Subscribe(topic, callback, ...opts) (SubscriberCtrl, error)
   - `ConsumerSetGroupID`: 指定consumer group id, 本次consume將覆蓋InitDefaultGroupID
   - `ConsumerSetAsyncNum`: 指定同時處理訊息的goroutine數量
   - `ConsumerOmitOldMsg`: 是否忽略舊訊息, 注意: *僅在該group初次監聽topic有效*
-  - `ConsumerNotCommitOnError`: callback發生error時, 不commit該筆訊息的offset(不記錄該筆訊息已消費)
+  - `ConsumerStopOnCallbackError`: callback發生error時發送中斷監聽的訊號, 監聽仍會持續直到中斷完畢, 並且發送error到`Subscribe`/`SubscribeWithRetry`  
 
 #### 斷線重試接收
 ```go

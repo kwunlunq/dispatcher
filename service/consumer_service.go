@@ -32,7 +32,7 @@ func (s *consumerService) SubscribeMessage(topic string, callback model.MessageC
 	dis := model.MakeDispatcher(opts)
 
 	// Subscribe
-	consumer, err = s.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg, dis.ConsumerIsCommitOffsetOnError)
+	consumer, err = s.subscribe(topic, dis.ConsumerGroupID, callback, dis.ConsumerAsyncNum, !dis.ConsumerOmitOldMsg, dis.ConsumerIsStopOnCallbackError)
 	return
 }
 
@@ -50,10 +50,10 @@ func (s *consumerService) SubscribeWithRetryMessage(topic string, callback model
 	return
 }
 
-func (s *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool, isMarkOffsetOnError bool) (consumer *Consumer, err error) {
+func (s *consumerService) subscribe(topic string, groupID string, callback model.MessageConsumerCallback, asyncNum int, offsetOldest bool, isStopOnCallbackError bool) (consumer *Consumer, err error) {
 
 	// Create consumer
-	consumer, err = s.newConsumer(topic, offsetOldest, groupID, callback, asyncNum, isMarkOffsetOnError)
+	consumer, err = s.newConsumer(topic, offsetOldest, groupID, callback, asyncNum, isStopOnCallbackError)
 	if err != nil {
 		err = errors.Wrapf(err, "error creating Consumer of Topic: [%v], groupID: [%v]", topic, groupID)
 		return
@@ -66,6 +66,8 @@ func (s *consumerService) subscribe(topic string, groupID string, callback model
 		case consumeErr = <-consumer.consume():
 			consumer.saramaCancel()
 		case consumeErr = <-consumer.saramaConsumer.Errors():
+			consumer.saramaCancel()
+		case consumeErr = <-consumer.CallbackErrors:
 			consumer.saramaCancel()
 		case <-consumer.ctx.Done():
 			consumeErr = model.ErrConsumerStoppedManually
@@ -87,13 +89,12 @@ func (c *Consumer) consume() (errChan chan error) {
 	go func() {
 		<-c.ctx.Done()
 		isCancelled = true
-		core.Logger.Debugf("TEST - consume() received c.ctx.Done() signal")
+		core.Logger.Debugf("consume() received c.ctx.Done() signal")
 	}()
 	go func() {
 		for {
-			core.Logger.Debugf("TEST - start consuming topic [%v], groupID [%v]", c.Topic, c.GroupID)
 			err := c.saramaConsumer.Consume(c.saramaCtx, []string{c.Topic}, &c.handler)
-			core.Logger.Debugf("TEST - consumer leaving: [%v], topic [%v], groupID [%v]", err, c.Topic, c.GroupID)
+			core.Logger.Debugf("consumer leaving: [%v], topic [%v], groupID [%v]", err, c.Topic, c.GroupID)
 			if err != nil {
 				err = errors.Wrapf(err, "error stop consume establishing Consumer of Topic [%v]", c.Topic)
 				errChan <- err
@@ -110,7 +111,7 @@ func (c *Consumer) consume() (errChan chan error) {
 	return
 }
 
-func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, isMarkOffsetOnError bool) (dispatcherConsumer *Consumer, err error) {
+func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID string, callback model.MessageConsumerCallback, asyncNum int, isStopOnErrorCallback bool) (dispatcherConsumer *Consumer, err error) {
 
 	// Create consumer group for each topic
 	formattedGroupID := glob.FormatGroupID(topic, groupID)
@@ -131,7 +132,7 @@ func (s *consumerService) newConsumer(topic string, offsetOldest bool, groupID s
 	}
 
 	// Wrap into dispatcher consumer
-	dispatcherConsumer = newConsumer(group, topic, formattedGroupID, asyncNum, callback, isMarkOffsetOnError)
+	dispatcherConsumer = newConsumer(group, topic, formattedGroupID, asyncNum, callback, isStopOnErrorCallback)
 	return
 }
 

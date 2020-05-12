@@ -32,12 +32,12 @@ type Dispatcher struct {
 	ConsumerGroupID               string
 	ConsumerLagCountHandler       func(lagCount int)
 	ConsumerLagCountInterval      time.Duration
-	ConsumerIsCommitOffsetOnError bool
+	ConsumerIsStopOnCallbackError bool
 }
 
 func MakeDispatcher(opts []Option) Dispatcher {
 	d := &Dispatcher{
-		ConsumerIsCommitOffsetOnError: true,
+		ConsumerIsStopOnCallbackError: false,
 	}
 	d.WithOptions(opts)
 	glob.SetIfZero(&d.KafkaConfig, "MsgMaxBytes", 20000000)
